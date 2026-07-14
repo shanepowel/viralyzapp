@@ -1,10 +1,23 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
+import { mkdirSync } from "fs";
+import path from "path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "../src/generated/prisma/client";
 
+function resolveSqliteUrl(raw?: string): string {
+  const url = raw && raw.trim().length > 0 ? raw.trim() : "file:./prisma/dev.db";
+  if (!url.startsWith("file:")) return url;
+  const filePath = url.replace(/^file:/, "");
+  const absolute = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(process.cwd(), filePath);
+  mkdirSync(path.dirname(absolute), { recursive: true });
+  return `file:${absolute}`;
+}
+
 const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL ?? "file:./dev.db",
+  url: resolveSqliteUrl(process.env.DATABASE_URL),
 });
 const prisma = new PrismaClient({ adapter });
 

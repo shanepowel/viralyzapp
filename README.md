@@ -45,7 +45,7 @@ Or **Create account** on `/login` for a fresh user.
 
 | Env | Config |
 |-----|--------|
-| **local** | `DATABASE_URL=file:./dev.db` |
+| **local** | `DATABASE_URL=file:./prisma/dev.db` (absolute-resolved at runtime) |
 | **local + services** | `docker compose up -d` for Postgres/Redis |
 | **preview / prod** | Hosted Postgres, S3, real OAuth, `SCORING_SERVICE_URL` |
 
