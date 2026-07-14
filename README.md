@@ -1,63 +1,66 @@
 # Viralyz App
 
-Creator scoring product — Dashboard + Score Results as the pattern library (“Signal” visual language).
+Creator scoring product — shippable beta for real testing. Signal design system, auth-gated multi-user app, upload → score → fix → schedule loop.
 
 ## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind CSS v4
-- **Prisma 7** + SQLite for local demo (Postgres-ready schema notes in `BACKEND.md`)
-- REST API routes matching the backend handoff
-- In-process mock scoring jobs (swap for BullMQ/SQS + real model service later)
+- **Prisma 7** + SQLite (Postgres-portable schema)
+- Deterministic scoring engine (swap for external ML later)
+- Local file uploads under `public/uploads/` (S3 later)
+- Mock platform connect (creates Platform rows)
 
 ## Quick start
 
 ```bash
 cp .env.example .env
 npm install
-npx prisma migrate dev --name init
+npx prisma migrate reset --force   # or: migrate dev + db:seed
 npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000/login](http://localhost:3000/login).
 
-- [/login](http://localhost:3000/login) — marketing-aligned sign-in (Signal design + viralyz.com voice); use **Continue as Maya R. · demo**
-- Home → Dashboard (Maya R. demo data)
-- Click a recent score row → Score Results
-- Apply a fix → re-score job → updated version
+### Tester accounts
+
+| Email | Password | Notes |
+|-------|----------|--------|
+| `maya@viralyz.com` | `demo1234` | Seeded demo library, unlimited scores |
+| `tester@viralyz.com` | `tester1234` | Empty credits plan (10 scores) |
+
+Or **Create account** on `/login` for a fresh user.
+
+### Core flows
+
+1. Sign in → Dashboard  
+2. **Score content** (`/score`) → upload or paste link → poll job → Score Results  
+3. Apply a fix → re-score (uses a credit on credits plan)  
+4. Schedule for 6pm → Calendar / Library  
+5. Create tools: Hook Lab, Script Doctor, Thumbnails, Captions  
+6. Grow: Calendar, Trends, Competitors  
+7. Earn: Media Kit, public `/kit/[handle]`, Engage, Analytics  
 
 ## Environments
 
 | Env | Config |
 |-----|--------|
-| **local** | SQLite via `DATABASE_URL=file:./dev.db` (default `.env.example`) |
-| **local + services** | `docker compose up -d` for Postgres/Redis; point `DATABASE_URL` at Postgres and change Prisma `provider` to `postgresql` |
-| **preview / prod** | Hosted Postgres, Redis/SQS, S3, real `SCORING_SERVICE_URL`, platform OAuth secrets — see `.env.example` |
+| **local** | `DATABASE_URL=file:./dev.db` |
+| **local + services** | `docker compose up -d` for Postgres/Redis |
+| **preview / prod** | Hosted Postgres, S3, real OAuth, `SCORING_SERVICE_URL` |
 
-## Docs & design
+## Docs
 
-- `BACKEND.md` — entities, APIs, computation notes, honesty layer
-- `reference/HANDOFF.md` — design tokens, screens, components
-- `reference/Viralyz App.dc.html` — interactive design reference (open in a browser)
+- `BACKEND.md` — entities, APIs, honesty layer  
+- `reference/HANDOFF.md` — design tokens  
+- `reference/Viralyz App.dc.html` — design reference  
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `npm run dev` | Next.js dev server |
-| `npm run build` | Generate Prisma client + production build |
-| `npm run db:migrate` | Create/apply migrations |
-| `npm run db:seed` | Load Maya demo dataset |
+| `npm run dev` | Dev server |
+| `npm run build` | Prisma generate + production build |
+| `npm run db:migrate` | Migrations |
+| `npm run db:seed` | Maya + tester seed |
 | `npm run lint` | ESLint |
-
-## API surface
-
-- `GET /api/dashboard`
-- `GET /api/content/:id/latest`
-- `POST /api/content/:id/score`
-- `GET /api/jobs/:id`
-- `POST /api/content/:id/fixes/:fixId/apply`
-- `POST /api/content/:id/schedule`
-- `GET /api/user/momentum`
-- `GET /api/media-kit/summary`
-- `POST /api/platforms/connect` (OAuth stub)

@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
 import { ScoreResultsView } from "@/components/score/ScoreResultsView";
+import { getSession, getSessionUser } from "@/lib/auth";
 import { getContentLatest } from "@/lib/content";
 import { prisma } from "@/lib/prisma";
 
@@ -9,16 +10,26 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function ContentPage({ params }: Props) {
-  const { id } = await params;
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  const exists = await prisma.content.findUnique({ where: { id }, select: { id: true } });
+  const { id } = await params;
+  const exists = await prisma.content.findFirst({
+    where: { id, userId: session.userId },
+    select: { id: true },
+  });
   if (!exists) notFound();
 
-  const data = await getContentLatest(id);
-  const user = await prisma.user.findFirst();
+  const data = await getContentLatest(id, session.userId);
+  const user = await getSessionUser();
 
   return (
-    <AppShell userName={user?.name ?? data.user.name} momentum={[5, 7, 6, 9, 11, 14]}>
+    <AppShell
+      userName={user?.name ?? data.user.name}
+      momentum={[5, 7, 6, 9, 11, 14]}
+      plan={user?.plan}
+      creditsRemaining={user?.creditsRemaining}
+    >
       <ScoreResultsView data={data} />
     </AppShell>
   );

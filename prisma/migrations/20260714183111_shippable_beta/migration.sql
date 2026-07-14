@@ -1,9 +1,13 @@
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "handle" TEXT,
     "avatarUrl" TEXT,
     "plan" TEXT NOT NULL DEFAULT 'credits',
+    "creditsRemaining" INTEGER NOT NULL DEFAULT 10,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
@@ -30,6 +34,11 @@ CREATE TABLE "Content" (
     "mediaType" TEXT NOT NULL DEFAULT 'video',
     "durationSec" INTEGER NOT NULL,
     "thumbnailUrl" TEXT,
+    "mediaUrl" TEXT,
+    "storageKey" TEXT,
+    "originalFilename" TEXT,
+    "sourceUrl" TEXT,
+    "notes" JSONB,
     "status" TEXT NOT NULL DEFAULT 'draft',
     "scheduledFor" DATETIME,
     "postedAt" DATETIME,
@@ -128,6 +137,8 @@ CREATE TABLE "MediaKit" (
     "userId" TEXT NOT NULL,
     "viewsThisWeek" INTEGER NOT NULL DEFAULT 0,
     "newOrdersCount" INTEGER NOT NULL DEFAULT 0,
+    "followers" INTEGER NOT NULL DEFAULT 0,
+    "engagementPct" REAL NOT NULL DEFAULT 0,
     "lastSyncedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -145,6 +156,64 @@ CREATE TABLE "ScoreJob" (
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "ScoreJob_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "Content" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- CreateTable
+CREATE TABLE "Trend" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "niche" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "velocity" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'jump_in',
+    "note" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "CompetitorPost" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "creatorName" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "score" INTEGER NOT NULL,
+    "whyItWorked" TEXT NOT NULL,
+    "thumbnailUrl" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "EngageComment" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "authorName" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "contentTitle" TEXT,
+    "reply" TEXT,
+    "repliedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "EngageComment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "ToolRun" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "tool" TEXT NOT NULL,
+    "input" JSONB NOT NULL,
+    "output" JSONB NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "ToolRun_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_handle_key" ON "User"("handle");
 
 -- CreateIndex
 CREATE INDEX "User_createdAt_idx" ON "User"("createdAt");
@@ -202,3 +271,15 @@ CREATE INDEX "ScoreJob_contentId_idx" ON "ScoreJob"("contentId");
 
 -- CreateIndex
 CREATE INDEX "ScoreJob_status_idx" ON "ScoreJob"("status");
+
+-- CreateIndex
+CREATE INDEX "Trend_status_idx" ON "Trend"("status");
+
+-- CreateIndex
+CREATE INDEX "EngageComment_userId_idx" ON "EngageComment"("userId");
+
+-- CreateIndex
+CREATE INDEX "ToolRun_userId_idx" ON "ToolRun"("userId");
+
+-- CreateIndex
+CREATE INDEX "ToolRun_tool_idx" ON "ToolRun"("tool");

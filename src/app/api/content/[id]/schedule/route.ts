@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireApiSession } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -11,28 +12,34 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request, { params }: Params) {
+  const auth = await requireApiSession();
+  if (auth.error) return auth.error;
+
   try {
     const { id } = await params;
+    const owned = await prisma.content.findFirst({
+      where: { id, userId: auth.session.userId },
+    });
+    if (!owned) {
+      return NextResponse.json({ error: "Content not found" }, { status: 404 });
+    }
+
     const json = await req.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(json);
 
-    const scheduledFor = parsed.success && parsed.data.scheduledFor
-      ? new Date(parsed.data.scheduledFor)
-      : (() => {
-          const d = new Date();
-          d.setHours(18, 0, 0, 0);
-          if (d.getTime() < Date.now()) {
-            d.setDate(d.getDate() + 1);
-          }
-          return d;
-        })();
+    const scheduledFor =
+      parsed.success && parsed.data.scheduledFor
+        ? new Date(parsed.data.scheduledFor)
+        : (() => {
+            const d = new Date();
+            d.setHours(18, 0, 0, 0);
+            if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
+            return d;
+          })();
 
     const content = await prisma.content.update({
       where: { id },
-      data: {
-        status: "scheduled",
-        scheduledFor,
-      },
+      data: { status: "scheduled", scheduledFor },
     });
 
     return NextResponse.json({

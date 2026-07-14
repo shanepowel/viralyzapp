@@ -7,9 +7,12 @@ import type {
   CurvePoint,
 } from "@/lib/types";
 
-export async function getContentLatest(contentId: string): Promise<ContentLatestResponse> {
-  const content = await prisma.content.findUniqueOrThrow({
-    where: { id: contentId },
+export async function getContentLatest(
+  contentId: string,
+  userId?: string,
+): Promise<ContentLatestResponse> {
+  const content = await prisma.content.findFirstOrThrow({
+    where: userId ? { id: contentId, userId } : { id: contentId },
     include: {
       platform: true,
       user: true,
@@ -85,11 +88,4 @@ export async function getContentLatest(contentId: string): Promise<ContentLatest
       plan: content.user.plan,
     },
   };
-}
-
-export async function getDefaultContentId(): Promise<string | null> {
-  const kitchen = await prisma.content.findFirst({
-    where: { title: "Kitchen hacks pt.3" },
-  });
-  return kitchen?.id ?? null;
 }

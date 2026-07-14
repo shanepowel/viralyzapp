@@ -24,6 +24,7 @@ export type DashboardResponse = {
     id: string;
     name: string;
     plan: string;
+    creditsRemaining?: number;
     momentum: number[];
   };
   monthlyScore: number;

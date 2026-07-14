@@ -1,36 +1,68 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireApiSession } from "@/lib/api";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   provider: z.enum(["tiktok", "instagram", "youtube"]),
+  handle: z.string().min(1).max(64).optional(),
 });
 
-/** OAuth kickoff stub — returns a mock authorize URL for local/demo. */
+/** Mock OAuth complete — creates/updates a Platform row for the session user. */
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.error) return auth.error;
+
   try {
     const json = await req.json();
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+    const handle =
+      parsed.data.handle ??
+      `@${auth.session.name.replace(/\s+/g, "").toLowerCase()}`;
+
+    const platform = await prisma.platform.upsert({
+      where: {
+        userId_provider_handle: {
+          userId: auth.session.userId,
+          provider: parsed.data.provider,
+          handle,
+        },
+      },
+      create: {
+        userId: auth.session.userId,
+        provider: parsed.data.provider,
+        handle,
+        syncStatus: "ok",
+      },
+      update: {
+        syncStatus: "ok",
+        connectedAt: new Date(),
+      },
+    });
+
     return NextResponse.json({
-      authorizeUrl: `${base}/api/platforms/connect?provider=${parsed.data.provider}&demo=1`,
-      message: "Demo mode: OAuth is stubbed. Wire real provider credentials in production.",
+      ok: true,
+      platform,
+      message: `Connected ${parsed.data.provider} as ${handle} (mock OAuth).`,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to start connect";
+    const message = err instanceof Error ? err.message : "Failed to connect";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-export async function GET(req: Request) {
-  const provider = new URL(req.url).searchParams.get("provider") ?? "tiktok";
-  return NextResponse.json({
-    ok: true,
-    provider,
-    message: `Demo OAuth callback for ${provider}. No account was linked.`,
+export async function GET() {
+  const auth = await requireApiSession();
+  if (auth.error) return auth.error;
+  const platforms = await prisma.platform.findMany({
+    where: { userId: auth.session.userId },
+    orderBy: { connectedAt: "desc" },
   });
+  return NextResponse.json({ platforms });
 }

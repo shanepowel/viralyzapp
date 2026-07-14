@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Panel } from "@/components/ui/Panel";
@@ -37,15 +38,23 @@ type Props = {
 export function DashboardView({ data }: Props) {
   const router = useRouter();
   const firstName = data.user.name.split(" ")[0];
+  const [showHow, setShowHow] = useState(false);
+  const [connectMsg, setConnectMsg] = useState<string | null>(null);
 
   async function connectPlatform() {
-    await fetch("/api/platforms/connect", {
+    const res = await fetch("/api/platforms/connect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tiktok" }),
     });
-    alert("Demo: OAuth connect is stubbed. See BACKEND.md for provider wiring.");
+    const json = await res.json();
+    setConnectMsg(json.message ?? "Connected TikTok (mock).");
   }
+
+  const planLabel =
+    data.user.plan === "unlimited"
+      ? "unlimited scores"
+      : `${data.user.creditsRemaining ?? 0} scores left`;
 
   return (
     <div className="vfade">
@@ -58,16 +67,18 @@ export function DashboardView({ data }: Props) {
         </div>
         <div className="flex gap-2.5 items-center flex-wrap">
           <span className="font-mono text-[11.5px] bg-[var(--card)] border border-[var(--line)] rounded-full px-3.5 py-[7px] text-[var(--ink-2)]">
-            Creator plan ·{" "}
-            <b className="text-[var(--violet-deep)]">
-              {data.user.plan === "unlimited" ? "unlimited scores" : "credits"}
-            </b>
+            Creator plan · <b className="text-[var(--violet-deep)]">{planLabel}</b>
           </span>
-          <Button variant="outline" onClick={connectPlatform}>
+          <Button variant="outline" onClick={() => void connectPlatform()}>
             Connect platform
           </Button>
         </div>
       </div>
+      {connectMsg && (
+        <div className="mb-4 rounded-[10px] bg-[var(--s90-soft)] text-[var(--s90)] text-[12.5px] px-3.5 py-2.5">
+          {connectMsg}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
         <StatCard
@@ -84,9 +95,13 @@ export function DashboardView({ data }: Props) {
           footnote={
             <>
               Based on your last {data.accuracySampleSize} posts ·{" "}
-              <a href="#how" className="text-[var(--violet-deep)] cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setShowHow(true)}
+                className="text-[var(--violet-deep)] cursor-pointer bg-transparent border-none p-0 font-inherit"
+              >
                 how we work this out
-              </a>
+              </button>
             </>
           }
         />
@@ -99,14 +114,43 @@ export function DashboardView({ data }: Props) {
           {data.nextBestAction && (
             <Button
               className="!bg-white !text-[var(--violet-deep)] text-[12.5px] px-3.5 py-2"
-              onClick={() => router.push(`/content/${data.nextBestAction!.contentId}`)}
+              onClick={() =>
+                router.push(
+                  data.nextBestAction!.contentId
+                    ? `/content/${data.nextBestAction!.contentId}`
+                    : "/score",
+                )
+              }
             >
-              Schedule it for {data.nextBestAction.suggestedSlot}
+              {data.nextBestAction.contentId
+                ? `Schedule it for ${data.nextBestAction.suggestedSlot}`
+                : "Score content"}
             </Button>
           )}
           <div className="absolute -right-[22px] -top-[22px] w-[110px] h-[110px] rounded-full border-[18px] border-white/8 pointer-events-none" />
         </div>
       </div>
+
+      {showHow && (
+        <div
+          className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4"
+          onClick={() => setShowHow(false)}
+        >
+          <div
+            className="bg-[var(--card)] rounded-[14px] border border-[var(--line)] max-w-[440px] w-full p-6 shadow-[var(--shadow-lift)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-[18px] font-semibold m-0 mb-2">How we work this out</h3>
+            <p className="text-[13px] text-[var(--ink-2)] m-0 mb-3">
+              Prediction accuracy compares each post&apos;s predicted view range at scoring time
+              against real views after publish. We count a hit when actual views land inside the
+              band (or within 35% of the midpoint). Misses are shown in your library — we never hide
+              them.
+            </p>
+            <Button onClick={() => setShowHow(false)}>Got it</Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-5 items-start">
         <Panel

@@ -10,17 +10,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  avatarUrl String?
-  plan      String   @default("credits") // credits | unlimited
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String
+  handle           String?  @unique
+  avatarUrl        String?
+  plan             String   @default("credits") // credits | unlimited
+  creditsRemaining Int      @default(10)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  platforms Platform[]
-  content   Content[]
-  insights  Insight[]
-  mediaKit  MediaKit?
+  platforms   Platform[]
+  content     Content[]
+  insights    Insight[]
+  mediaKit    MediaKit?
+  comments    EngageComment[]
+  toolRuns    ToolRun[]
 
   @@index([createdAt])
 }
@@ -43,24 +49,29 @@ model Platform {
 }
 
 model Content {
-  id           String    @id @default(cuid())
-  userId       String
-  platformId   String?
-  title        String
-  mediaType    String    @default("video")
-  durationSec  Int
-  thumbnailUrl String?
-  status       String    @default("draft") // draft | scheduled | tracking | posted
-  scheduledFor DateTime?
-  postedAt     DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  userId           String
+  platformId       String?
+  title            String
+  mediaType        String    @default("video")
+  durationSec      Int
+  thumbnailUrl     String?
+  mediaUrl         String?
+  storageKey       String?
+  originalFilename String?
+  sourceUrl        String?
+  notes            Json?
+  status           String    @default("draft") // draft | scheduled | tracking | posted
+  scheduledFor     DateTime?
+  postedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  platform     Platform?           @relation(fields: [platformId], references: [id], onDelete: SetNull)
-  versions     ContentVersion[]
-  performance  ActualPerformance[]
-  jobs         ScoreJob[]
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform    Platform?           @relation(fields: [platformId], references: [id], onDelete: SetNull)
+  versions    ContentVersion[]
+  performance ActualPerformance[]
+  jobs        ScoreJob[]
 
   @@index([userId])
   @@index([status])
@@ -84,19 +95,19 @@ model ContentVersion {
 }
 
 model Score {
-  id                String   @id @default(cuid())
-  contentVersionId  String   @unique
-  overallScore      Int
-  componentScores   Json // { opening, visuals, pacing, words, timing } each 0-20
-  componentNotes    Json // { opening, visuals, pacing, words, timing } one sentence each
-  verdict           String
-  predictedViewsLow Int
+  id                 String   @id @default(cuid())
+  contentVersionId   String   @unique
+  overallScore       Int
+  componentScores    Json
+  componentNotes     Json
+  verdict            String
+  predictedViewsLow  Int
   predictedViewsHigh Int
-  confidencePct     Int
-  sampleSize        Int
-  computedAt        DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  confidencePct      Int
+  sampleSize         Int
+  computedAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   contentVersion ContentVersion @relation(fields: [contentVersionId], references: [id], onDelete: Cascade)
 
@@ -124,7 +135,7 @@ model Fix {
   description      String
   suggestionText   String
   pointValue       Int
-  railSeverity     String    @default("med") // low | med | high
+  railSeverity     String    @default("med")
   applied          Boolean   @default(false)
   appliedAt        DateTime?
   pointsEarned     Int?
@@ -137,9 +148,9 @@ model Fix {
 }
 
 model RetentionCurve {
-  id               String  @id @default(cuid())
-  contentVersionId String  @unique
-  curvePoints      Json // [{ tSeconds, pctRemaining }]
+  id               String   @id @default(cuid())
+  contentVersionId String   @unique
+  curvePoints      Json
   riskMomentSec    Int?
   riskNote         String?
   createdAt        DateTime @default(now())
@@ -171,6 +182,8 @@ model MediaKit {
   userId         String   @unique
   viewsThisWeek  Int      @default(0)
   newOrdersCount Int      @default(0)
+  followers      Int      @default(0)
+  engagementPct  Float    @default(0)
   lastSyncedAt   DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -181,7 +194,7 @@ model MediaKit {
 model ScoreJob {
   id        String   @id @default(cuid())
   contentId String
-  status    String   @default("queued") // queued | running | completed | failed
+  status    String   @default("queued")
   result    Json?
   error     String?
   createdAt DateTime @default(now())
@@ -191,4 +204,61 @@ model ScoreJob {
 
   @@index([contentId])
   @@index([status])
+}
+
+model Trend {
+  id          String   @id @default(cuid())
+  niche       String
+  title       String
+  velocity    Int
+  status      String   @default("jump_in") // jump_in | dying | stable
+  note        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model CompetitorPost {
+  id           String   @id @default(cuid())
+  creatorName  String
+  platform     String
+  title        String
+  score        Int
+  whyItWorked  String
+  thumbnailUrl String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EngageComment {
+  id          String   @id @default(cuid())
+  userId      String
+  platform    String
+  authorName  String
+  body        String
+  contentTitle String?
+  reply       String?
+  repliedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ToolRun {
+  id        String   @id @default(cuid())
+  userId    String
+  tool      String // hooks | script | thumbnails | captions
+  input     Json
+  output    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tool])
 }

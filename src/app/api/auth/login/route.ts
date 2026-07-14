@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AUTH_COOKIE, sessionCookieValue } from "@/lib/auth";
+import { AUTH_COOKIE, sessionCookieValue, verifyPassword } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,6 @@ const bodySchema = z.object({
   demo: z.boolean().optional(),
 });
 
-/** Demo auth — accepts any credentials; Maya demo shortcut supported. */
 export async function POST(req: Request) {
   try {
     const json = await req.json();
@@ -19,16 +19,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Enter a valid email and password." }, { status: 400 });
     }
 
-    const { email, demo } = parsed.data;
-    const user = demo
-      ? { email: "maya@viralyz.com", name: "Maya R." }
-      : {
-          email,
-          name: email.split("@")[0]?.replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Creator",
-        };
+    const email = parsed.data.demo ? "maya@viralyz.com" : parsed.data.email.toLowerCase();
+    const password = parsed.data.demo ? "demo1234" : parsed.data.password;
 
-    const res = NextResponse.json({ ok: true, user });
-    res.cookies.set(AUTH_COOKIE, sessionCookieValue(user), {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+    }
+
+    const session = { userId: user.id, email: user.email, name: user.name };
+    const res = NextResponse.json({
+      ok: true,
+      user: { id: user.id, email: user.email, name: user.name, handle: user.handle },
+    });
+    res.cookies.set(AUTH_COOKIE, sessionCookieValue(session), {
       httpOnly: true,
       sameSite: "lax",
       path: "/",

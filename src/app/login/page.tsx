@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { LoginView } from "@/components/auth/LoginView";
 import { getSession } from "@/lib/auth";
 
@@ -16,5 +17,9 @@ export default async function LoginPage() {
     redirect("/");
   }
 
-  return <LoginView />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--paper)]" />}>
+      <LoginView />
+    </Suspense>
+  );
 }

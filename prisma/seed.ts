@@ -1,13 +1,18 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./dev.db",
+  url: process.env.DATABASE_URL ?? "file:./dev.db",
 });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  await prisma.toolRun.deleteMany();
+  await prisma.engageComment.deleteMany();
+  await prisma.competitorPost.deleteMany();
+  await prisma.trend.deleteMany();
   await prisma.scoreJob.deleteMany();
   await prisma.actualPerformance.deleteMany();
   await prisma.fix.deleteMany();
@@ -20,11 +25,17 @@ async function main() {
   await prisma.platform.deleteMany();
   await prisma.user.deleteMany();
 
+  const mayaHash = await bcrypt.hash("demo1234", 10);
+  const testerHash = await bcrypt.hash("tester1234", 10);
+
   const user = await prisma.user.create({
     data: {
+      email: "maya@viralyz.com",
+      passwordHash: mayaHash,
       name: "Maya R.",
-      avatarUrl: null,
+      handle: "mayacooks",
       plan: "unlimited",
+      creditsRemaining: 999,
       platforms: {
         create: [
           { provider: "tiktok", handle: "@mayacooks", syncStatus: "ok" },
@@ -36,6 +47,8 @@ async function main() {
         create: {
           viewsThisWeek: 142,
           newOrdersCount: 2,
+          followers: 214000,
+          engagementPct: 7.4,
           lastSyncedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
         },
       },
@@ -66,6 +79,20 @@ async function main() {
       },
     },
     include: { platforms: true },
+  });
+
+  await prisma.user.create({
+    data: {
+      email: "tester@viralyz.com",
+      passwordHash: testerHash,
+      name: "Beta Tester",
+      handle: "betatester",
+      plan: "credits",
+      creditsRemaining: 10,
+      mediaKit: {
+        create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
+      },
+    },
   });
 
   const tiktok = user.platforms.find((p) => p.provider === "tiktok")!;
@@ -119,8 +146,7 @@ async function main() {
     },
   });
 
-  // Kitchen v1
-  const kitchenV1 = await prisma.contentVersion.create({
+  await prisma.contentVersion.create({
     data: {
       contentId: kitchen.id,
       versionNumber: 1,
@@ -145,8 +171,7 @@ async function main() {
     },
   });
 
-  // Kitchen v2 (current)
-  const kitchenV2 = await prisma.contentVersion.create({
+  await prisma.contentVersion.create({
     data: {
       contentId: kitchen.id,
       versionNumber: 2,
@@ -220,9 +245,6 @@ async function main() {
     },
   });
 
-  void kitchenV1;
-  void kitchenV2;
-
   await prisma.contentVersion.create({
     data: {
       contentId: pasta.id,
@@ -247,7 +269,6 @@ async function main() {
       },
     },
   });
-
   await prisma.actualPerformance.create({
     data: { contentId: pasta.id, actualViews: 312000 },
   });
@@ -301,12 +322,10 @@ async function main() {
       },
     },
   });
-
   await prisma.actualPerformance.create({
     data: { contentId: market.id, actualViews: 23000 },
   });
 
-  // Extra scored posts for monthly averages / accuracy window
   for (let i = 0; i < 8; i++) {
     const c = await prisma.content.create({
       data: {
@@ -350,7 +369,99 @@ async function main() {
     });
   }
 
-  console.log("Seeded Viralyz demo data for", user.name);
+  await prisma.trend.createMany({
+    data: [
+      {
+        niche: "Food",
+        title: "Silent ASMR plating",
+        velocity: 92,
+        status: "jump_in",
+        note: "Rising fast in your niche. Jump in this week.",
+      },
+      {
+        niche: "Food",
+        title: "Grocery haul voiceovers",
+        velocity: 41,
+        status: "dying",
+        note: "Peak passed. Skip unless you have a twist.",
+      },
+      {
+        niche: "Food",
+        title: "One-pan dinners under 10 minutes",
+        velocity: 78,
+        status: "jump_in",
+        note: "Strong overlap with your best posts.",
+      },
+      {
+        niche: "Creators",
+        title: "Day-in-the-life B-roll",
+        velocity: 55,
+        status: "stable",
+        note: "Steady. Good filler slot, not a breakout.",
+      },
+    ],
+  });
+
+  await prisma.competitorPost.createMany({
+    data: [
+      {
+        creatorName: "Chef Nova",
+        platform: "tiktok",
+        title: "Onion trick that went nuclear",
+        score: 94,
+        whyItWorked: "Question hook + payoff in under one second.",
+        thumbnailUrl: "linear-gradient(135deg,#F2994A,#EB5757)",
+      },
+      {
+        creatorName: "Pantry Pete",
+        platform: "instagram",
+        title: "Pasta water science",
+        score: 88,
+        whyItWorked: "Clear face + text overlay at the stall moment.",
+        thumbnailUrl: "linear-gradient(135deg,#6C4CF1,#3D2A9E)",
+      },
+      {
+        creatorName: "Market Mia",
+        platform: "youtube",
+        title: "Sunday market in 60s",
+        score: 76,
+        whyItWorked: "Posted at peak slot; mid cut still a bit slow.",
+        thumbnailUrl: "linear-gradient(135deg,#27AE60,#145A32)",
+      },
+    ],
+  });
+
+  await prisma.engageComment.createMany({
+    data: [
+      {
+        userId: user.id,
+        platform: "tiktok",
+        authorName: "sam.eats",
+        body: "Wait what knife is that??",
+        contentTitle: "Kitchen hacks pt.3",
+      },
+      {
+        userId: user.id,
+        platform: "instagram",
+        authorName: "brand.kitchenware",
+        body: "Love this — can we send you a kit?",
+        contentTitle: "5 minute pasta, honestly",
+      },
+      {
+        userId: user.id,
+        platform: "tiktok",
+        authorName: "lee.cooks",
+        body: "Tried this and it actually worked",
+        contentTitle: "Q&A: your cooking fails",
+        reply: "Yesss tell me which tip hit!",
+        repliedAt: new Date(Date.now() - 3600000),
+      },
+    ],
+  });
+
+  console.log("Seeded Viralyz beta data");
+  console.log("Maya: maya@viralyz.com / demo1234");
+  console.log("Tester: tester@viralyz.com / tester1234");
   console.log("Hero content id:", kitchen.id);
 }
 

@@ -23,6 +23,9 @@ type Props = {
   children: ReactNode;
   userName?: string;
   momentum?: number[];
+  plan?: string;
+  creditsRemaining?: number;
+  libraryCount?: number;
 };
 
 type NavItem = {
@@ -30,12 +33,12 @@ type NavItem = {
   label: string;
   icon: typeof Home;
   group: string | null;
-  badge?: string;
+  badgeKey?: "library";
 };
 
 const nav: NavItem[] = [
   { href: "/", label: "Home", icon: Home, group: null },
-  { href: "/library", label: "Library", icon: Library, group: null, badge: "24" },
+  { href: "/library", label: "Library", icon: Library, group: null, badgeKey: "library" },
   { href: "/hook-lab", label: "Hook Lab", icon: Sparkles, group: "Create" },
   { href: "/script-doctor", label: "Script Doctor", icon: FileText, group: "Create" },
   { href: "/thumbnails", label: "Thumbnails", icon: ImageIcon, group: "Create" },
@@ -69,7 +72,12 @@ function withGroupHeaders(items: NavItem[]) {
 
 const navWithGroups = withGroupHeaders(nav);
 
-export function AppShell({ children, userName = "Maya R.", momentum = [5, 7, 6, 9, 11, 14] }: Props) {
+export function AppShell({
+  children,
+  userName = "Creator",
+  momentum = [5, 7, 6, 9, 11, 14],
+  libraryCount,
+}: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -92,7 +100,7 @@ export function AppShell({ children, userName = "Maya R.", momentum = [5, 7, 6, 
 
         <div className="mx-1 mb-4">
           <Link
-            href="/"
+            href="/score"
             className="btn-primary flex w-full items-center justify-center gap-2 font-semibold text-[13.5px] py-[11px] rounded-full border-none bg-[var(--violet)] text-white"
           >
             ✦&nbsp;&nbsp;Score content
@@ -102,9 +110,11 @@ export function AppShell({ children, userName = "Maya R.", momentum = [5, 7, 6, 
         {navWithGroups.map(({ item, showGroup }) => {
           const active =
             item.href === "/"
-              ? pathname === "/" || pathname.startsWith("/content")
-              : pathname === item.href;
+              ? pathname === "/"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
+          const badge =
+            item.badgeKey === "library" && libraryCount != null ? String(libraryCount) : null;
           return (
             <div key={item.href}>
               {showGroup && item.group && (
@@ -126,9 +136,9 @@ export function AppShell({ children, userName = "Maya R.", momentum = [5, 7, 6, 
                   style={{ opacity: active ? 1 : 0.75 }}
                 />
                 {item.label}
-                {item.badge && (
+                {badge && (
                   <span className="ml-auto font-mono text-[10px] bg-[var(--tint)] rounded-full px-[7px] py-px text-[var(--ink-3)]">
-                    {item.badge}
+                    {badge}
                   </span>
                 )}
               </Link>
@@ -170,10 +180,7 @@ export function AppShell({ children, userName = "Maya R.", momentum = [5, 7, 6, 
             </button>
           </div>
           <div className="text-[10.5px] text-[var(--ink-3)] pt-2.5 px-0">
-            A Digiteq Holdings company ·{" "}
-            <Link href="/login" className="text-[var(--violet-deep)]">
-              Sign in
-            </Link>
+            A Digiteq Holdings company
           </div>
         </div>
       </aside>

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { ComponentScores } from "@/lib/types";
+import { scoreContent } from "@/lib/scorer";
 
 type JobStore = Map<string, NodeJS.Timeout>;
 
@@ -12,10 +12,6 @@ if (process.env.NODE_ENV !== "production") {
   globalForJobs.viralyzJobTimers = timers;
 }
 
-function bumpScore(base: number, appliedPoints: number): number {
-  return Math.min(100, base + appliedPoints);
-}
-
 export async function enqueueScoreJob(contentId: string): Promise<string> {
   const job = await prisma.scoreJob.create({
     data: { contentId, status: "queued" },
@@ -23,7 +19,7 @@ export async function enqueueScoreJob(contentId: string): Promise<string> {
 
   const timer = setTimeout(() => {
     void runScoreJob(job.id);
-  }, 600);
+  }, 700);
   timers.set(job.id, timer);
 
   return job.id;
@@ -43,10 +39,11 @@ async function runScoreJob(jobId: string) {
       include: {
         content: {
           include: {
+            platform: true,
             versions: {
               orderBy: { versionNumber: "desc" },
               take: 1,
-              include: { score: true, fixes: true, retentionCurve: true },
+              include: { score: true, fixes: true },
             },
           },
         },
@@ -54,25 +51,16 @@ async function runScoreJob(jobId: string) {
     });
 
     const latest = job.content.versions[0];
-    if (!latest?.score) {
-      throw new Error("No prior score to re-score from");
-    }
+    const appliedTitles = latest?.fixes.filter((f) => f.applied).map((f) => f.title) ?? [];
+    const nextVersionNumber = (latest?.versionNumber ?? 0) + 1;
 
-    const appliedPoints = latest.fixes
-      .filter((f) => f.applied)
-      .reduce((sum, f) => sum + (f.pointsEarned ?? f.pointValue), 0);
-
-    const nextVersionNumber = latest.versionNumber + 1;
-    const newOverall = bumpScore(latest.score.overallScore, Math.min(3, appliedPoints > 0 ? 2 : 0));
-
-    const prevComponents = latest.score.componentScores as ComponentScores;
-    const nextComponents: ComponentScores = {
-      opening: prevComponents.opening,
-      visuals: prevComponents.visuals,
-      pacing: Math.min(20, prevComponents.pacing + (latest.fixes.some((f) => f.applied && f.title.includes("pause")) ? 2 : 0)),
-      words: prevComponents.words,
-      timing: prevComponents.timing,
-    };
+    const scored = scoreContent({
+      title: job.content.title,
+      durationSec: job.content.durationSec,
+      platform: job.content.platform?.provider,
+      sourceUrl: job.content.sourceUrl,
+      appliedFixTitles: appliedTitles,
+    });
 
     const version = await prisma.contentVersion.create({
       data: {
@@ -80,40 +68,35 @@ async function runScoreJob(jobId: string) {
         versionNumber: nextVersionNumber,
         score: {
           create: {
-            overallScore: newOverall,
-            componentScores: nextComponents,
-            componentNotes: latest.score.componentNotes as object,
-            verdict:
-              newOverall >= 85
-                ? "Ready to post. One small fix would make it great."
-                : "Close. A couple of fixes will lift this into posting range.",
-            predictedViewsLow: latest.score.predictedViewsLow,
-            predictedViewsHigh: latest.score.predictedViewsHigh,
-            confidencePct: latest.score.confidencePct,
-            sampleSize: latest.score.sampleSize,
+            overallScore: scored.overallScore,
+            componentScores: scored.componentScores,
+            componentNotes: scored.componentNotes,
+            verdict: scored.verdict,
+            predictedViewsLow: scored.predictedViewsLow,
+            predictedViewsHigh: scored.predictedViewsHigh,
+            confidencePct: scored.confidencePct,
+            sampleSize: scored.sampleSize,
           },
         },
         fixes: {
-          create: latest.fixes.map((f) => ({
+          create: scored.fixes.map((f) => ({
             title: f.title,
             description: f.description,
             suggestionText: f.suggestionText,
             pointValue: f.pointValue,
             railSeverity: f.railSeverity,
             applied: f.applied,
-            appliedAt: f.appliedAt,
+            appliedAt: f.applied ? new Date() : null,
             pointsEarned: f.applied ? f.pointValue : null,
           })),
         },
-        retentionCurve: latest.retentionCurve
-          ? {
-              create: {
-                curvePoints: latest.retentionCurve.curvePoints as object,
-                riskMomentSec: latest.retentionCurve.riskMomentSec,
-                riskNote: latest.retentionCurve.riskNote,
-              },
-            }
-          : undefined,
+        retentionCurve: {
+          create: {
+            curvePoints: scored.retentionCurve.curvePoints,
+            riskMomentSec: scored.retentionCurve.riskMomentSec,
+            riskNote: scored.retentionCurve.riskNote,
+          },
+        },
       },
     });
 
@@ -121,7 +104,11 @@ async function runScoreJob(jobId: string) {
       where: { id: jobId },
       data: {
         status: "completed",
-        result: { contentVersionId: version.id, overallScore: newOverall },
+        result: {
+          contentVersionId: version.id,
+          overallScore: scored.overallScore,
+          versionNumber: nextVersionNumber,
+        },
       },
     });
   } catch (err) {
