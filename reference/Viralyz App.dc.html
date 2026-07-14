@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;-webkit-font-smoothing:antialiased}
+::selection{background:#EFEBFF;color:#5638D6}
+@keyframes vfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="--paper:#FAFAF7;--card:#FFFFFF;--tint:#F1EFEA;--ink:#1B1826;--ink-2:#5B5768;--ink-3:#928FA0;--line:#E7E4DD;--line-strong:#D6D2C8;--violet:#6C4CF1;--violet-deep:#5638D6;--violet-soft:#EFEBFF;--s90:#0FA968;--s90-soft:#E3F6ED;--s70:#7CA426;--s70-soft:#F2F8E2;--s50:#D9950B;--s50-soft:#FCF3E1;--s30:#DE4E4E;--s30-soft:#FBEAEA;background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.55;min-height:100vh;position:relative">
+
+<div style="display:grid;grid-template-columns:232px 1fr;min-height:100vh">
+
+<!-- SIDEBAR -->
+<aside style="background:var(--card);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh">
+  <div style="display:flex;align-items:center;gap:9px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;padding:4px 10px 18px">
+    <span style="width:20px;height:20px;border-radius:50%;border:3px solid var(--violet);border-top-color:var(--s90);transform:rotate(-45deg);display:inline-block"></span>Viralyz
+  </div>
+  <div style="margin:0 4px 16px">
+    <button style="display:flex;width:100%;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:11px;border-radius:999px;cursor:pointer;border:none;font-family:'Inter',sans-serif;background:var(--violet);color:#fff;transition:all .16s cubic-bezier(.16,1,.3,1)" style-hover="background:var(--violet-deep);transform:translateY(-1px)">✦&nbsp;&nbsp;Score content</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--violet-deep);font-weight:600;font-size:13.5px;cursor:pointer;background:var(--violet-soft);border-left:2.5px solid var(--violet)">
+    <svg style="width:17px;height:17px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"/></svg>Home
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Library
+    <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--tint);border-radius:99px;padding:1px 7px;color:var(--ink-3)">24</span>
+  </div>
+
+  <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:14px 10px 6px">Create</div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>Hook Lab
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Script Doctor
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8.5" cy="8" r="1.5"/><path d="M21 13l-5-5L5 19"/></svg>Thumbnails
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Captions
+  </div>
+
+  <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:14px 10px 6px">Grow</div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>Calendar
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>Trends
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>Competitors
+  </div>
+
+  <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:14px 10px 6px">Earn</div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7h-9m9 10h-9M4 7h1m-1 10h1"/><circle cx="7" cy="7" r="2"/><circle cx="7" cy="17" r="2"/></svg>Media Kit
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16v12H5.2L4 17.2V4z"/><path d="M9 9h6"/></svg>Engage
+  </div>
+  <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:13.5px;cursor:pointer;border-left:2.5px solid transparent" style-hover="background:var(--tint);color:var(--ink)">
+    <svg style="width:17px;height:17px;flex-shrink:0;opacity:.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Analytics
+  </div>
+
+  <div style="margin-top:auto;padding:14px 10px 4px;border-top:1px solid var(--line)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#F2994A,#EB5757);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:13px">MR</div>
+      <div>
+        <div style="font-weight:600;font-size:13px;line-height:1.2">Maya R.</div>
+        <div style="display:flex;align-items:flex-end;gap:2px;height:14px;margin-top:3px">
+          <i style="width:4px;border-radius:2px;background:var(--line-strong);height:5px;display:block"></i>
+          <i style="width:4px;border-radius:2px;background:var(--line-strong);height:7px;display:block"></i>
+          <i style="width:4px;border-radius:2px;background:var(--line-strong);height:6px;display:block"></i>
+          <i style="width:4px;border-radius:2px;background:var(--s90);height:9px;display:block"></i>
+          <i style="width:4px;border-radius:2px;background:var(--s90);height:11px;display:block"></i>
+          <i style="width:4px;border-radius:2px;background:var(--s90);height:14px;display:block"></i>
+        </div>
+      </div>
+      <svg style="margin-left:auto;width:15px;opacity:.4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </div>
+    <div style="font-size:10.5px;color:var(--ink-3);padding:10px 10px 0">A Digiteq Holdings company</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main style="padding:0 36px 48px;max-width:1160px">
+
+<sc-if value="{{isDash}}" hint-placeholder-val="{{true}}">
+<div style="animation:vfade .3s cubic-bezier(.16,1,.3,1)">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 0 26px;position:sticky;top:0;background:var(--paper);z-index:10">
+    <div>
+      <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:700;margin:0">Good morning, Maya</h1>
+      <div style="font-size:13px;color:var(--ink-3);margin-top:2px">Tuesday 14 July · your audience peaks at 6pm today</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:7px 14px;color:var(--ink-2)">Creator plan · <b style="color:var(--violet-deep)">unlimited scores</b></span>
+      <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--card);color:var(--ink);font-family:'Inter',sans-serif" style-hover="border-color:var(--ink)">Connect platform</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px">
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;position:relative">
+      <div style="font-size:12px;color:var(--ink-3);font-weight:500;margin-bottom:10px">Your score this month</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;line-height:1;display:flex;align-items:baseline;gap:10px">76 <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;color:var(--s90)">▲ 8</span></div>
+      <div style="font-size:11.5px;color:var(--ink-3);margin-top:8px">Average across 12 posts</div>
+      <div style="position:absolute;right:18px;bottom:20px;display:flex;align-items:flex-end;gap:3px;height:26px">
+        <i style="width:5px;border-radius:2px;background:var(--violet-soft);height:8px;display:block"></i>
+        <i style="width:5px;border-radius:2px;background:var(--violet-soft);height:11px;display:block"></i>
+        <i style="width:5px;border-radius:2px;background:var(--violet-soft);height:9px;display:block"></i>
+        <i style="width:5px;border-radius:2px;background:var(--violet-soft);height:14px;display:block"></i>
+        <i style="width:5px;border-radius:2px;background:var(--violet-soft);height:17px;display:block"></i>
+        <i style="width:5px;border-radius:2px;background:var(--violet);height:22px;display:block"></i>
+      </div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;position:relative">
+      <div style="font-size:12px;color:var(--ink-3);font-weight:500;margin-bottom:10px">Predictions right</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;line-height:1;display:flex;align-items:baseline;gap:10px">82% <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;color:var(--s90)">▲ 5</span></div>
+      <div style="font-size:11.5px;color:var(--ink-3);margin-top:8px">Based on your last 34 posts · <a href="#" style="color:var(--violet-deep);cursor:pointer">how we work this out</a></div>
+    </div>
+    <div style="grid-column:span 2;background:linear-gradient(135deg,var(--violet),var(--violet-deep));color:#fff;border:none;border-radius:14px;padding:20px;position:relative;overflow:hidden">
+      <div style="font-size:12px;color:rgba(255,255,255,.75);font-weight:500;margin-bottom:10px">Next best thing to do</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:600;line-height:1.35;margin-bottom:12px">"Kitchen hacks pt.3" scored 87 but is not scheduled. Tonight at 6pm is your best slot this week.</div>
+      <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:12.5px;padding:8px 14px;border-radius:999px;cursor:pointer;border:none;font-family:'Inter',sans-serif;background:#fff;color:var(--violet-deep)" style-hover="transform:translateY(-1px)">Schedule it for 6pm</button>
+      <div style="position:absolute;right:-22px;top:-22px;width:110px;height:110px;border-radius:50%;border:18px solid rgba(255,255,255,.08)"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:20px;align-items:start">
+    <div>
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)">
+          <h3 style="font-size:15px;margin:0">Recent scores</h3>
+          <a href="#" style="font-size:12.5px;color:var(--violet-deep);font-weight:600;cursor:pointer">View library</a>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:10px 20px;border-bottom:1px solid var(--line);font-weight:500">Content</th>
+            <th style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:10px 20px;border-bottom:1px solid var(--line);font-weight:500">Score</th>
+            <th style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:10px 20px;border-bottom:1px solid var(--line);font-weight:500">Status</th>
+            <th style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:10px 20px;border-bottom:1px solid var(--line);font-weight:500">Predicted vs real</th>
+          </tr></thead>
+          <tbody>
+            <sc-for list="{{tableRows}}" as="row" hint-placeholder-count="4">
+              <tr style="cursor:pointer" style-hover="background:var(--tint)">
+                <td style="padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:44px;height:32px;border-radius:7px;flex-shrink:0;background:{{row.thumb}}"></div>
+                    <div><div style="font-weight:600;font-size:13px">{{row.title}}</div><div style="font-size:11px;color:var(--ink-3)">{{row.meta}}</div></div>
+                  </div>
+                </td>
+                <td style="padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle">
+                  <div style="position:relative;width:34px;height:34px">
+                    <svg width="34" height="34" viewBox="0 0 34 34" style="transform:rotate(-90deg)">
+                      <circle cx="17" cy="17" r="13.5" fill="none" stroke="#F1EFEA" strokeWidth="3.5"/>
+                      <circle cx="17" cy="17" r="13.5" fill="none" stroke="{{row.color}}" strokeWidth="3.5" strokeLinecap="round" strokeDasharray="85" strokeDashoffset="{{row.offset}}"/>
+                    </svg>
+                    <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:{{row.color}}">{{row.score}}</span>
+                  </div>
+                </td>
+                <td style="padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle"><span style="font-size:11px;font-weight:600;border-radius:99px;padding:4px 11px;display:inline-block;background:{{row.chipBg}};color:{{row.chipColor}}">{{row.status}}</span></td>
+                <td style="padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle;font-family:'JetBrains Mono',monospace;font-size:12px">{{row.views}} <span style="color:var(--ink-3);font-size:10.5px">{{row.vsNote}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)">
+          <h3 style="font-size:15px;margin:0">What works for you</h3>
+          <a href="#" style="font-size:12.5px;color:var(--violet-deep);font-weight:600;cursor:pointer">Analytics</a>
+        </div>
+        <div style="padding:8px 20px 14px">
+          <sc-for list="{{wfyRows}}" as="w" hint-placeholder-count="3">
+            <div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2);align-items:flex-start">
+              <div style="width:26px;height:26px;border-radius:8px;background:var(--s90-soft);color:var(--s90);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;font-weight:700">{{w.icon}}</div>
+              <div><b style="color:var(--ink)">{{w.bold}}</b> {{w.rest}}<span style="display:block;font-size:11px;color:var(--ink-3);margin-top:2px">{{w.note}}</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)">
+          <h3 style="font-size:15px;margin:0">Your media kit</h3>
+          <a href="#" style="font-size:12.5px;color:var(--violet-deep);font-weight:600;cursor:pointer">Open</a>
+        </div>
+        <div style="padding:16px 20px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:7px 0;color:var(--ink-2)"><span>Kit views this week</span><b style="font-family:'JetBrains Mono',monospace;color:var(--ink)">142</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:7px 0;color:var(--ink-2)"><span>Package orders</span><b style="font-family:'JetBrains Mono',monospace;color:var(--ink)">2 new</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:7px 0;color:var(--ink-2)"><span>Verified sync</span><b style="font-family:'JetBrains Mono',monospace;color:var(--s90)">2h ago</b></div>
+          <button style="display:inline-flex;width:100%;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--card);color:var(--ink);font-family:'Inter',sans-serif;margin-top:10px" style-hover="border-color:var(--ink)">View orders</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{isResults}}" hint-placeholder-val="{{false}}">
+<div style="animation:vfade .3s cubic-bezier(.16,1,.3,1)">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 0 26px;position:sticky;top:0;background:var(--paper);z-index:10">
+    <div>
+      <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:700;margin:0">Kitchen hacks pt.3</h1>
+      <div style="font-size:13px;color:var(--ink-3);margin-top:2px">Scored 2 minutes ago · version 2 · <a href="#" style="color:var(--violet-deep);cursor:pointer">see version 1 (74)</a></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center"><span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:7px 14px;color:var(--ink-2)">Creator plan · <b style="color:var(--violet-deep)">unlimited scores</b></span></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:150px 1fr auto;gap:28px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 28px;margin-bottom:20px">
+    <div style="position:relative;width:150px;height:150px">
+      <svg width="150" height="150" viewBox="0 0 150 150" style="transform:rotate(-90deg)">
+        <circle cx="75" cy="75" r="64" fill="none" stroke="#F1EFEA" strokeWidth="10"/>
+        <circle cx="75" cy="75" r="64" fill="none" stroke="#0FA968" strokeWidth="10" strokeLinecap="round" strokeDasharray="402" strokeDashoffset="52"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <span style="font-family:'Bricolage Grotesque',sans-serif;font-size:44px;font-weight:700;line-height:1;color:#0FA968">87</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-top:4px">Viral Score</span>
+      </div>
+    </div>
+    <div>
+      <h2 style="font-size:21px;margin:0 0 6px">Ready to post. One small fix would make it great.</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:11.5px;font-weight:600;background:var(--tint);border-radius:99px;padding:4px 12px;display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:2px;background:#FF0050;display:inline-block"></span>TikTok</span>
+        <span style="font-size:11.5px;font-weight:600;border-radius:99px;padding:4px 12px;display:inline-flex;align-items:center;gap:6px;background:var(--s90-soft);color:var(--s90)">Up 13 from version 1</span>
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-3)">We are <b style="color:var(--ink-2)">78% confident</b> in this prediction, based on 41 of your posts. Predicted views: <b style="color:var(--ink-2)">180K to 240K</b>.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;cursor:pointer;border:none;font-family:'Inter',sans-serif;background:var(--violet);color:#fff" style-hover="background:var(--violet-deep);transform:translateY(-1px)">Schedule for 6pm</button>
+      <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--card);color:var(--ink);font-family:'Inter',sans-serif" style-hover="border-color:var(--ink)">Score again</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px">
+    <sc-for list="{{compCards}}" as="c" hint-placeholder-count="5">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-weight:600;font-size:13px">{{c.name}}</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-3)">{{c.val}}</span></div>
+        <div style="height:6px;background:var(--tint);border-radius:99px;overflow:hidden;margin-bottom:8px"><div style="height:100%;border-radius:99px;width:{{c.pct}};background:{{c.color}}"></div></div>
+        <p style="font-size:11.5px;color:var(--ink-2);line-height:1.45;margin:0">{{c.note}}</p>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)"><h3 style="font-size:15px;margin:0">Fixes</h3><span style="font-size:12px;color:var(--ink-3)">Ordered by what they are worth</span></div>
+    <sc-for list="{{fixCards}}" as="f" hint-placeholder-count="3">
+      <div style="display:flex;gap:16px;padding:18px 20px;border-bottom:1px solid var(--line);align-items:flex-start;background:{{f.bg}}">
+        <div style="width:4px;border-radius:99px;align-self:stretch;flex-shrink:0;background:{{f.railColor}}"></div>
+        <div style="flex:1">
+          <h4 style="font-size:14px;margin:0 0 4px;display:flex;gap:10px;align-items:center">{{f.title}} <sc-if value="{{f.applied}}" hint-placeholder-val="{{false}}"><span style="font-size:11.5px;font-weight:700;color:var(--s90);display:inline-flex;gap:6px;align-items:center">✓ Applied · earned {{f.points}}</span></sc-if><sc-if value="{{f.notApplied}}" hint-placeholder-val="{{true}}"><span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--s90);font-weight:600">worth {{f.points}}</span></sc-if></h4>
+          <p style="font-size:13px;color:var(--ink-2);margin:0 0 10px">{{f.desc}}</p>
+          <div style="border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px;font-style:italic;color:var(--ink);background:{{f.sugBg}}">{{f.suggestion}}</div>
+          <sc-if value="{{f.notApplied}}" hint-placeholder-val="{{true}}">
+            <div style="display:flex;gap:8px">
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:999px;cursor:pointer;border:none;font-family:'Inter',sans-serif;background:var(--violet);color:#fff" style-hover="background:var(--violet-deep)">Apply and score again</button>
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:999px;cursor:pointer;border:none;font-family:'Inter',sans-serif;color:var(--ink-2);background:transparent" style-hover="color:var(--ink);background:var(--tint)">Skip</button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)"><h3 style="font-size:15px;margin:0">Where people will stay and leave</h3><span style="font-size:12px;color:var(--ink-3)">Predicted watch curve</span></div>
+    <div style="padding:20px">
+      <svg style="width:100%;height:120px" viewBox="0 0 600 120" preserveAspectRatio="none">
+        <defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6C4CF1" stopOpacity=".18"/><stop offset="1" stopColor="#6C4CF1" stopOpacity="0"/></linearGradient></defs>
+        <path d="M0,15 C60,18 100,25 160,32 C220,39 260,42 300,48 C330,53 350,70 380,74 C420,79 480,84 600,92 L600,120 L0,120 Z" fill="url(#rg)"/>
+        <path d="M0,15 C60,18 100,25 160,32 C220,39 260,42 300,48 C330,53 350,70 380,74 C420,79 480,84 600,92" fill="none" stroke="#6C4CF1" strokeWidth="2.5"/>
+        <circle cx="352" cy="63" r="5" fill="#D9950B"/>
+      </svg>
+      <div style="font-size:12px;color:var(--ink-2);display:flex;gap:8px;align-items:center;margin-top:10px">
+        <span style="width:18px;height:18px;border-radius:50%;background:var(--s50-soft);color:var(--s50);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">!</span>
+        Risk moment at 0:41. The still shot loses people. The fix above deals with this.
+      </div>
+    </div>
+  </div>
+
+  <div style="position:sticky;bottom:0;background:rgba(250,250,247,.9);backdropFilter:blur(10px);border-top:1px solid var(--line);padding:14px 0;display:flex;gap:10px;justify-content:flex-end">
+    <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;cursor:pointer;border:none;font-family:'Inter',sans-serif;color:var(--ink-2);background:transparent" style-hover="color:var(--ink);background:var(--tint)">Save draft</button>
+    <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--card);color:var(--ink);font-family:'Inter',sans-serif" style-hover="border-color:var(--ink)">Score again</button>
+    <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;cursor:pointer;border:none;font-family:'Inter',sans-serif;background:var(--violet);color:#fff" style-hover="background:var(--violet-deep);transform:translateY(-1px)">Schedule for 6pm</button>
+  </div>
+</div>
+</sc-if>
+
+</main>
+</div>
+
+<div style="position:fixed;bottom:18px;right:18px;background:var(--ink);border-radius:999px;padding:5px;display:flex;gap:4px;z-index:50;box-shadow:0 2px 4px rgba(27,24,38,.06),0 16px 40px rgba(27,24,38,.1)">
+  <button onClick="{{goDash}}" style="border:none;background:{{dashBtnBg}};color:{{dashBtnColor}};font-family:'Inter',sans-serif;font-weight:600;font-size:12px;padding:7px 14px;border-radius:99px;cursor:pointer">Dashboard</button>
+  <button onClick="{{goResults}}" style="border:none;background:{{resultsBtnBg}};color:{{resultsBtnColor}};font-family:'Inter',sans-serif;font-weight:600;font-size:12px;padding:7px 14px;border-radius:99px;cursor:pointer">Score results</button>
+</div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { view: 'dash' };
+
+  tableRows = [
+    { thumb:'linear-gradient(135deg,#F2994A,#EB5757)', title:'Kitchen hacks pt.3', meta:'TikTok · 0:42', score:87, color:'#0FA968', offset:11, status:'Draft', chipBg:'#F1EFEA', chipColor:'#928FA0', views:'210K', vsNote:'predicted' },
+    { thumb:'linear-gradient(135deg,#6C4CF1,#3D2A9E)', title:'5 minute pasta, honestly', meta:'Reels · 0:38', score:91, color:'#0FA968', offset:8, status:'Tracking', chipBg:'#FCF3E1', chipColor:'#D9950B', views:'312K', vsNote:'vs 260K predicted ▲' },
+    { thumb:'linear-gradient(135deg,#56CCF2,#2F80ED)', title:'Q&A: your cooking fails', meta:'TikTok · 1:04', score:72, color:'#7CA426', offset:24, status:'Scheduled', chipBg:'#EFEBFF', chipColor:'#5638D6', views:'95K', vsNote:'predicted' },
+    { thumb:'linear-gradient(135deg,#27AE60,#145A32)', title:'Behind the scenes, market run', meta:'YouTube · 8:12', score:58, color:'#D9950B', offset:36, status:'Posted', chipBg:'#E3F6ED', chipColor:'#0FA968', views:'23K', vsNote:'vs 45K predicted ▼' },
+  ];
+
+  wfyRows = [
+    { icon:'?', bold:'Questions in your first line', rest:'do 2.1 times better than statements.', note:'Based on your last 34 posts' },
+    { icon:'◷', bold:'Tuesday and Thursday, 6pm', rest:'are your strongest slots.', note:'From your real results' },
+    { icon:'▭', bold:'40 to 60 second videos', rest:'hold your viewers best.', note:'Longer ones lose people at the midpoint' },
+  ];
+
+  compCards = [
+    { name:'Opening', val:'19/20', pct:'95%', color:'#0FA968', note:'Strong. The payoff lands in the first second.' },
+    { name:'Visuals', val:'18/20', pct:'90%', color:'#0FA968', note:'Bright, readable, a clear face. Works at feed size.' },
+    { name:'Pacing', val:'15/20', pct:'75%', color:'#7CA426', note:'One slow moment at 0:41 where the shot holds still.' },
+    { name:'Words', val:'18/20', pct:'90%', color:'#0FA968', note:'Caption and tags are solid. Good niche tag mix.' },
+    { name:'Timing', val:'17/20', pct:'85%', color:'#7CA426', note:'Tonight at 6pm is your peak. Scheduled slot is good.' },
+  ];
+
+  fixCards = [
+    { title:'Trim the pause at 0:41', points:'+3', desc:'The shot holds still for four seconds while you plate up. People start leaving here.', suggestion:'Cut to the close-up at 0:43 two seconds earlier, or add a text overlay over the pause.', applied:false, notApplied:true, bg:'transparent', railColor:'#D9950B', sugBg:'#F1EFEA' },
+    { title:'Rewrite the first line', points:'+9', desc:'Version 1 buried the payoff at nine seconds in.', suggestion:'"I have been cutting onions wrong for 20 years."', applied:true, notApplied:false, bg:'#E3F6ED', railColor:'#0FA968', sugBg:'#fff' },
+    { title:'Bigger thumbnail text', points:'+4', desc:'The old text disappeared at feed size.', suggestion:'Three words, high contrast: "ONIONS. YOU\'RE WRONG."', applied:true, notApplied:false, bg:'#E3F6ED', railColor:'#0FA968', sugBg:'#fff' },
+  ];
+
+  renderVals() {
+    const isDash = this.state.view === 'dash';
+    return {
+      isDash, isResults: !isDash,
+      goDash: () => this.setState({ view: 'dash' }),
+      goResults: () => this.setState({ view: 'results' }),
+      dashBtnBg: isDash ? '#6C4CF1' : 'none',
+      dashBtnColor: isDash ? '#fff' : '#B9B6C6',
+      resultsBtnBg: !isDash ? '#6C4CF1' : 'none',
+      resultsBtnColor: !isDash ? '#fff' : '#B9B6C6',
+      tableRows: this.tableRows,
+      wfyRows: this.wfyRows,
+      compCards: this.compCards,
+      fixCards: this.fixCards,
+    };
+  }
+}
+</script>
+</body>
+</html>

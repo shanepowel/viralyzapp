@@ -1,0 +1,194 @@
+// Viralyz data model — see BACKEND.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  avatarUrl String?
+  plan      String   @default("credits") // credits | unlimited
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  platforms Platform[]
+  content   Content[]
+  insights  Insight[]
+  mediaKit  MediaKit?
+
+  @@index([createdAt])
+}
+
+model Platform {
+  id          String   @id @default(cuid())
+  userId      String
+  provider    String // tiktok | instagram | youtube
+  handle      String
+  connectedAt DateTime @default(now())
+  syncStatus  String   @default("ok") // ok | syncing | error
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content Content[]
+
+  @@index([userId])
+  @@unique([userId, provider, handle])
+}
+
+model Content {
+  id           String    @id @default(cuid())
+  userId       String
+  platformId   String?
+  title        String
+  mediaType    String    @default("video")
+  durationSec  Int
+  thumbnailUrl String?
+  status       String    @default("draft") // draft | scheduled | tracking | posted
+  scheduledFor DateTime?
+  postedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform     Platform?           @relation(fields: [platformId], references: [id], onDelete: SetNull)
+  versions     ContentVersion[]
+  performance  ActualPerformance[]
+  jobs         ScoreJob[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([platformId])
+}
+
+model ContentVersion {
+  id            String   @id @default(cuid())
+  contentId     String
+  versionNumber Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  content        Content         @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  score          Score?
+  fixes          Fix[]
+  retentionCurve RetentionCurve?
+
+  @@unique([contentId, versionNumber])
+  @@index([contentId])
+}
+
+model Score {
+  id                String   @id @default(cuid())
+  contentVersionId  String   @unique
+  overallScore      Int
+  componentScores   Json // { opening, visuals, pacing, words, timing } each 0-20
+  componentNotes    Json // { opening, visuals, pacing, words, timing } one sentence each
+  verdict           String
+  predictedViewsLow Int
+  predictedViewsHigh Int
+  confidencePct     Int
+  sampleSize        Int
+  computedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  contentVersion ContentVersion @relation(fields: [contentVersionId], references: [id], onDelete: Cascade)
+
+  @@index([computedAt])
+}
+
+model ActualPerformance {
+  id          String   @id @default(cuid())
+  contentId   String
+  actualViews Int
+  measuredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([contentId])
+  @@index([measuredAt])
+}
+
+model Fix {
+  id               String    @id @default(cuid())
+  contentVersionId String
+  title            String
+  description      String
+  suggestionText   String
+  pointValue       Int
+  railSeverity     String    @default("med") // low | med | high
+  applied          Boolean   @default(false)
+  appliedAt        DateTime?
+  pointsEarned     Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  contentVersion ContentVersion @relation(fields: [contentVersionId], references: [id], onDelete: Cascade)
+
+  @@index([contentVersionId])
+}
+
+model RetentionCurve {
+  id               String  @id @default(cuid())
+  contentVersionId String  @unique
+  curvePoints      Json // [{ tSeconds, pctRemaining }]
+  riskMomentSec    Int?
+  riskNote         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  contentVersion ContentVersion @relation(fields: [contentVersionId], references: [id], onDelete: Cascade)
+}
+
+model Insight {
+  id             String   @id @default(cuid())
+  userId         String
+  statement      String
+  supportingNote String
+  metricKey      String
+  sampleSize     Int
+  icon           String   @default("?")
+  computedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([computedAt])
+}
+
+model MediaKit {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  viewsThisWeek  Int      @default(0)
+  newOrdersCount Int      @default(0)
+  lastSyncedAt   DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ScoreJob {
+  id        String   @id @default(cuid())
+  contentId String
+  status    String   @default("queued") // queued | running | completed | failed
+  result    Json?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([contentId])
+  @@index([status])
+}
