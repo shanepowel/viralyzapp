@@ -21,6 +21,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+- [/login](http://localhost:3000/login) — marketing-aligned sign-in (Signal design + viralyz.com voice); use **Continue as Maya R. · demo**
 - Home → Dashboard (Maya R. demo data)
 - Click a recent score row → Score Results
 - Apply a fix → re-score job → updated version

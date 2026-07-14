@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   BarChart3,
@@ -11,8 +11,8 @@ import {
   Home,
   Image as ImageIcon,
   Library,
+  LogOut,
   MessageSquare,
-  Settings,
   Sparkles,
   Target,
   TrendingUp,
@@ -71,6 +71,13 @@ const navWithGroups = withGroupHeaders(nav);
 
 export function AppShell({ children, userName = "Maya R.", momentum = [5, 7, 6, 9, 11, 14] }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function signOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[232px_1fr] min-h-screen bg-[var(--paper)] text-[var(--ink)]">
@@ -152,10 +159,21 @@ export function AppShell({ children, userName = "Maya R.", momentum = [5, 7, 6, 
                 ))}
               </div>
             </div>
-            <Settings className="ml-auto w-[15px] opacity-40" strokeWidth={2} />
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              title="Sign out"
+              className="ml-auto p-0 border-none bg-transparent cursor-pointer text-[var(--ink)] opacity-40 hover:opacity-80"
+              aria-label="Sign out"
+            >
+              <LogOut className="w-[15px]" strokeWidth={2} />
+            </button>
           </div>
           <div className="text-[10.5px] text-[var(--ink-3)] pt-2.5 px-0">
-            A Digiteq Holdings company
+            A Digiteq Holdings company ·{" "}
+            <Link href="/login" className="text-[var(--violet-deep)]">
+              Sign in
+            </Link>
           </div>
         </div>
       </aside>

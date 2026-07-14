@@ -37,7 +37,7 @@ export function Button({
   }
 
   return (
-    <button className={`${base} ${styles} ${className}`} type="button" {...rest}>
+    <button className={`${base} ${styles} ${className}`} type={rest.type ?? "button"} {...rest}>
       {children}
     </button>
   );
