@@ -22,6 +22,14 @@ npm run dev
 
 Open [http://localhost:3000/login](http://localhost:3000/login).
 
+Auth API (canonical production path):
+
+- `POST /api/login` — sign in (`https://app.viralyz.com/api/login`)
+- `POST /api/signup` — create account
+- `POST /api/logout` — clear session
+
+(` /api/auth/*` aliases remain for compatibility.)
+
 ### Tester accounts
 
 | Email | Password | Notes |

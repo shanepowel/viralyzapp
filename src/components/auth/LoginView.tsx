@@ -42,7 +42,7 @@ export function LoginView() {
 
   async function login(payload: { email: string; password: string; demo?: boolean }) {
     setError(null);
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -57,7 +57,7 @@ export function LoginView() {
 
   async function signup() {
     setError(null);
-    const res = await fetch("/api/auth/signup", {
+    const res = await fetch("/api/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password }),

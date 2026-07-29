@@ -6,6 +6,9 @@ const AUTH_COOKIE = "viralyz_session";
 const PUBLIC_PREFIXES = [
   "/login",
   "/kit/",
+  "/api/login",
+  "/api/logout",
+  "/api/signup",
   "/api/auth/",
   "/_next/",
   "/favicon.ico",
@@ -14,6 +17,9 @@ const PUBLIC_PREFIXES = [
 
 function isPublic(pathname: string) {
   if (pathname === "/kit" || pathname.startsWith("/kit/")) return true;
+  if (pathname === "/api/login" || pathname === "/api/logout" || pathname === "/api/signup") {
+    return true;
+  }
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
 }
 
