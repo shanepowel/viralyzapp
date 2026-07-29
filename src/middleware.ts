@@ -10,14 +10,22 @@ const PUBLIC_PREFIXES = [
   "/api/logout",
   "/api/signup",
   "/api/auth/",
+  "/api/health",
+  "/api/platforms/oauth/",
   "/_next/",
   "/favicon.ico",
   "/uploads/",
 ];
 
 function isPublic(pathname: string) {
+  if (pathname === "/" || pathname === "") return true;
   if (pathname === "/kit" || pathname.startsWith("/kit/")) return true;
   if (pathname === "/api/login" || pathname === "/api/logout" || pathname === "/api/signup") {
+    return true;
+  }
+  if (pathname === "/api/health") return true;
+  // OAuth callbacks must be reachable without a session cookie edge-case
+  if (pathname.startsWith("/api/platforms/oauth/") && pathname.endsWith("/callback")) {
     return true;
   }
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));

@@ -1,10 +1,10 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { storeUpload, storageBackend } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,19 +28,19 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-    const storageKey = `${auth.session.userId}/${id}-${Date.now()}-${safeName}`;
-    const dir = path.join(process.cwd(), "public", "uploads", auth.session.userId);
-    await mkdir(dir, { recursive: true });
-    const filename = path.basename(storageKey);
-    await writeFile(path.join(dir, filename), bytes);
+    const stored = await storeUpload({
+      userId: auth.session.userId,
+      contentId: id,
+      originalFilename: file.name,
+      bytes,
+      contentType: file.type || "application/octet-stream",
+    });
 
-    const mediaUrl = `/uploads/${auth.session.userId}/${filename}`;
     const updated = await prisma.content.update({
       where: { id },
       data: {
-        mediaUrl,
-        storageKey,
+        mediaUrl: stored.mediaUrl,
+        storageKey: stored.storageKey,
         originalFilename: file.name,
       },
     });
@@ -49,6 +49,7 @@ export async function POST(req: Request, { params }: Params) {
       id: updated.id,
       mediaUrl: updated.mediaUrl,
       originalFilename: updated.originalFilename,
+      storage: storageBackend(),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upload failed";

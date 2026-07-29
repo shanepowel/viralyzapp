@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
@@ -10,6 +10,12 @@ import { ScoreRing } from "@/components/ui/ScoreRing";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatDuration, formatViews } from "@/lib/score-bands";
 import type { DashboardResponse } from "@/lib/types";
+
+const PROVIDERS = [
+  { id: "tiktok" as const, label: "TikTok" },
+  { id: "instagram" as const, label: "Instagram" },
+  { id: "youtube" as const, label: "YouTube" },
+];
 
 function splitInsight(statement: string): { bold: string; rest: string } {
   const patterns = [
@@ -37,18 +43,57 @@ type Props = {
 
 export function DashboardView({ data }: Props) {
   const router = useRouter();
+  const search = useSearchParams();
   const firstName = data.user.name.split(" ")[0];
   const [showHow, setShowHow] = useState(false);
-  const [connectMsg, setConnectMsg] = useState<string | null>(null);
+  const [localConnectMsg, setLocalConnectMsg] = useState<string | null>(null);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectBusy, setConnectBusy] = useState<string | null>(null);
 
-  async function connectPlatform() {
-    const res = await fetch("/api/platforms/connect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "tiktok" }),
-    });
-    const json = await res.json();
-    setConnectMsg(json.message ?? "Connected TikTok (mock).");
+  const oauthStatus = search.get("connect");
+  const oauthProvider = search.get("provider") ?? "platform";
+  const oauthHandle = search.get("handle");
+  const oauthMsg =
+    oauthStatus === "ok"
+      ? oauthHandle
+        ? `Connected ${oauthProvider} as ${oauthHandle}.`
+        : `Connected ${oauthProvider}.`
+      : oauthStatus === "error"
+        ? `Could not connect ${oauthProvider}: ${search.get("reason") || "unknown error"}`
+        : null;
+  const connectMsg = localConnectMsg ?? oauthMsg;
+
+  function dismissConnectMsg() {
+    setLocalConnectMsg(null);
+    if (oauthStatus) router.replace("/", { scroll: false });
+  }
+
+  async function connectPlatform(provider: "tiktok" | "instagram" | "youtube") {
+    setConnectBusy(provider);
+    setLocalConnectMsg(null);
+    try {
+      const res = await fetch("/api/platforms/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      const json = await res.json();
+      if (json.oauth && json.oauthUrl) {
+        window.location.assign(json.oauthUrl as string);
+        return;
+      }
+      if (!res.ok) {
+        setLocalConnectMsg(json.error ?? "Could not connect platform.");
+        return;
+      }
+      setLocalConnectMsg(json.message ?? `Connected ${provider}.`);
+      setConnectOpen(false);
+      router.refresh();
+    } catch {
+      setLocalConnectMsg("Could not connect platform.");
+    } finally {
+      setConnectBusy(null);
+    }
   }
 
   const planLabel =
@@ -65,18 +110,46 @@ export function DashboardView({ data }: Props) {
             Tuesday 14 July · your audience peaks at 6pm today
           </div>
         </div>
-        <div className="flex gap-2.5 items-center flex-wrap">
+        <div className="flex gap-2.5 items-center flex-wrap relative">
           <span className="font-mono text-[11.5px] bg-[var(--card)] border border-[var(--line)] rounded-full px-3.5 py-[7px] text-[var(--ink-2)]">
             Creator plan · <b className="text-[var(--violet-deep)]">{planLabel}</b>
           </span>
-          <Button variant="outline" onClick={() => void connectPlatform()}>
+          <Button variant="outline" onClick={() => setConnectOpen((o) => !o)}>
             Connect platform
           </Button>
+          {connectOpen && (
+            <div className="absolute right-0 top-full mt-2 z-20 min-w-[200px] rounded-[14px] border border-[var(--line)] bg-[var(--card)] shadow-[var(--shadow-lift)] p-2">
+              {PROVIDERS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={connectBusy !== null}
+                  onClick={() => void connectPlatform(p.id)}
+                  className="w-full text-left px-3 py-2.5 rounded-[10px] text-[13px] font-medium hover:bg-[var(--tint)] disabled:opacity-50 cursor-pointer bg-transparent border-none text-[var(--ink)]"
+                >
+                  {connectBusy === p.id ? "Connecting…" : p.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       {connectMsg && (
-        <div className="mb-4 rounded-[10px] bg-[var(--s90-soft)] text-[var(--s90)] text-[12.5px] px-3.5 py-2.5">
-          {connectMsg}
+        <div
+          className={`mb-4 rounded-[10px] text-[12.5px] px-3.5 py-2.5 flex items-center justify-between gap-3 ${
+            connectMsg.startsWith("Could not")
+              ? "bg-[var(--s30-soft)] text-[var(--s30)]"
+              : "bg-[var(--s90-soft)] text-[var(--s90)]"
+          }`}
+        >
+          <span>{connectMsg}</span>
+          <button
+            type="button"
+            onClick={dismissConnectMsg}
+            className="shrink-0 text-[11px] opacity-70 hover:opacity-100 cursor-pointer bg-transparent border-none font-inherit"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

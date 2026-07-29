@@ -8,6 +8,18 @@ This covers the data model and API surface implied by the Dashboard + Score Resu
 - Object storage (S3-compatible) for uploaded video/thumbnail assets
 - A model-serving layer (internal ML service or third-party API) behind the scoring endpoints — the UI treats scoring as a black box, so isolate it behind one internal service boundary
 
+## Implemented adapters (swap-in)
+
+| Boundary | Module | Activation |
+|----------|--------|------------|
+| Jobs | `src/lib/queue.ts` + `scripts/worker.ts` | `REDIS_URL` → BullMQ; else inline |
+| Storage | `src/lib/storage.ts` | `S3_BUCKET` + keys → S3; else `public/uploads/` |
+| Scoring | `src/lib/scoring-service.ts` | `SCORING_SERVICE_URL` → remote `/v1/score`; else `scorer.ts` |
+| OAuth | `src/lib/oauth.ts` + `/api/platforms/oauth/[provider]/*` | Provider client id/secret → real tokens on `Platform` |
+| Status | `GET /api/health` | Reports which backends are active |
+
+`Platform` stores `accessToken`, `refreshToken`, `tokenExpiresAt`, `externalAccountId`, `scopes` when OAuth completes.
+
 ## Core entities
 
 ```

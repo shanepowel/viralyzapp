@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { scoreContent } from "@/lib/scorer";
+import { enqueueOnBull, queueBackend } from "@/lib/queue";
+import { runScorer } from "@/lib/scoring-service";
 
 type JobStore = Map<string, NodeJS.Timeout>;
 
@@ -17,15 +18,18 @@ export async function enqueueScoreJob(contentId: string): Promise<string> {
     data: { contentId, status: "queued" },
   });
 
-  const timer = setTimeout(() => {
-    void runScoreJob(job.id);
-  }, 700);
-  timers.set(job.id, timer);
+  const queued = await enqueueOnBull(job.id);
+  if (!queued) {
+    const timer = setTimeout(() => {
+      void processScoreJob(job.id);
+    }, 700);
+    timers.set(job.id, timer);
+  }
 
   return job.id;
 }
 
-async function runScoreJob(jobId: string) {
+export async function processScoreJob(jobId: string) {
   timers.delete(jobId);
 
   try {
@@ -54,7 +58,7 @@ async function runScoreJob(jobId: string) {
     const appliedTitles = latest?.fixes.filter((f) => f.applied).map((f) => f.title) ?? [];
     const nextVersionNumber = (latest?.versionNumber ?? 0) + 1;
 
-    const scored = scoreContent({
+    const scored = await runScorer({
       title: job.content.title,
       durationSec: job.content.durationSec,
       platform: job.content.platform?.provider,
@@ -108,6 +112,7 @@ async function runScoreJob(jobId: string) {
           contentVersionId: version.id,
           overallScore: scored.overallScore,
           versionNumber: nextVersionNumber,
+          queue: queueBackend(),
         },
       },
     });
@@ -117,5 +122,6 @@ async function runScoreJob(jobId: string) {
       where: { id: jobId },
       data: { status: "failed", error: message },
     });
+    throw err;
   }
 }

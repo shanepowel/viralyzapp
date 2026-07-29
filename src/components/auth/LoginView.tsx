@@ -26,7 +26,9 @@ export function LoginView() {
   const router = useRouter();
   const search = useSearchParams();
   const next = search.get("next") || "/";
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(
+    search.get("mode") === "signup" ? "signup" : "signin",
+  );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
