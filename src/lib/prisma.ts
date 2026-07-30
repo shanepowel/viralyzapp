@@ -24,7 +24,7 @@ export function resolveSqliteUrl(raw?: string): string {
   const filePath = url.replace(/^file:/, "");
   let absolute = path.isAbsolute(filePath)
     ? filePath
-    : path.resolve(process.cwd(), filePath);
+    : path.resolve(/* turbopackIgnore: true */ process.cwd(), filePath);
 
   if (isServerless()) {
     const dir = "/tmp/viralyz";
