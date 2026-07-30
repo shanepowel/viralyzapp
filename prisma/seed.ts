@@ -1,25 +1,22 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { mkdirSync } from "fs";
-import path from "path";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
-function resolveSqliteUrl(raw?: string): string {
-  const url = raw && raw.trim().length > 0 ? raw.trim() : "file:./prisma/dev.db";
-  if (!url.startsWith("file:")) return url;
-  const filePath = url.replace(/^file:/, "");
-  const absolute = path.isAbsolute(filePath)
-    ? filePath
-    : path.resolve(process.cwd(), filePath);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  return `file:${absolute}`;
+const url = process.env.DATABASE_URL?.trim();
+if (!url || url.startsWith("file:")) {
+  throw new Error("Set DATABASE_URL to a Postgres connection string before seeding.");
 }
 
-const adapter = new PrismaBetterSqlite3({
-  url: resolveSqliteUrl(process.env.DATABASE_URL),
+const pool = new Pool({
+  connectionString: url,
+  ssl:
+    url.includes("sslmode=require") || url.includes("neon.tech")
+      ? { rejectUnauthorized: false }
+      : undefined,
 });
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 async function main() {
   await prisma.toolRun.deleteMany();
@@ -485,4 +482,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

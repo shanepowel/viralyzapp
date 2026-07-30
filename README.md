@@ -5,7 +5,7 @@ Creator scoring product — shippable beta for real testing. Signal design syste
 ## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind CSS v4
-- **Prisma 7** + SQLite (Postgres-portable schema)
+- **Prisma 7** + Postgres (Neon)
 - Scoring: local heuristic **or** external ML via `SCORING_SERVICE_URL`
 - Storage: local `public/uploads/` **or** S3 / MinIO
 - Jobs: in-process queue **or** BullMQ + Redis (`npm run worker`)
@@ -96,10 +96,9 @@ External scorer contract: `POST {SCORING_SERVICE_URL}/v1/score` with `ScoreInput
 
 | Env | Config |
 |-----|--------|
-| **local** | `DATABASE_URL=file:./prisma/dev.db` |
-| **Vercel** | SQLite is copied from `prisma/demo.db` into `/tmp/viralyz/` (project FS is read-only). Seeded: Maya + tester. |
-| **local + services** | `docker compose up -d` + worker |
-| **durable prod** | Prefer hosted Postgres — set `DATABASE_URL` to Postgres and swap the Prisma adapter |
+| **local / prod** | Postgres `DATABASE_URL` (Neon recommended) |
+| **local + services** | `docker compose up -d` + `npm run worker` |
+| **Auth** | `GET /api/login` → redirects to `/login`; `POST /api/login` signs in |
 
 ## Docs
 

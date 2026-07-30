@@ -1,75 +1,53 @@
-import { copyFileSync, existsSync, mkdirSync } from "fs";
-import path from "path";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
-  viralyzDbReady: boolean | undefined;
+  pgPool: Pool | undefined;
 };
 
 function isServerless() {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 }
 
-/** Resolve SQLite file: URLs. On Vercel, use /tmp (read-only project FS). */
-export function resolveSqliteUrl(raw?: string): string {
-  const fallback = "file:./prisma/dev.db";
-  const url = raw && raw.trim().length > 0 ? raw.trim() : fallback;
-
-  if (!url.startsWith("file:")) {
-    return url;
+function createPrismaClient(): PrismaClient {
+  const raw = process.env.DATABASE_URL?.trim();
+  if (!raw) {
+    throw new Error("DATABASE_URL is required (Postgres connection string).");
   }
-
-  const filePath = url.replace(/^file:/, "");
-  let absolute = path.isAbsolute(filePath)
-    ? filePath
-    : path.resolve(/* turbopackIgnore: true */ process.cwd(), filePath);
-
-  if (isServerless()) {
-    const dir = "/tmp/viralyz";
-    mkdirSync(dir, { recursive: true });
-    absolute = path.join(dir, path.basename(absolute) || "dev.db");
-    ensureDemoDatabase(absolute);
-  } else {
-    mkdirSync(path.dirname(absolute), { recursive: true });
-  }
-
-  return `file:${absolute}`;
-}
-
-/** Copy the shipped seeded DB into /tmp when missing (Vercel cold start). */
-function ensureDemoDatabase(targetPath: string) {
-  if (existsSync(targetPath)) return;
-
-  const root = /* turbopackIgnore: true */ process.cwd();
-  const candidates = [
-    path.join(root, "prisma", "demo.db"),
-    path.join(root, "prisma", "dev.db"),
-  ];
-
-  for (const src of candidates) {
-    if (existsSync(src)) {
-      mkdirSync(path.dirname(targetPath), { recursive: true });
-      copyFileSync(src, targetPath);
-      return;
-    }
-  }
-}
-
-function createPrismaClient() {
-  const resolved = resolveSqliteUrl(process.env.DATABASE_URL);
-  if (!resolved.startsWith("file:")) {
+  if (raw.startsWith("file:")) {
     throw new Error(
-      "This build uses SQLite. Set DATABASE_URL to a file: URL, or configure a Postgres adapter.",
+      "SQLite file: URLs are no longer supported. Set DATABASE_URL to a Postgres URL (Neon/local).",
     );
   }
 
-  const adapter = new PrismaBetterSqlite3({ url: resolved });
-  return new PrismaClient({ adapter });
+  const pool =
+    globalForPrisma.pgPool ??
+    new Pool({
+      connectionString: raw,
+      max: isServerless() ? 1 : 10,
+      ssl:
+        raw.includes("sslmode=require") || raw.includes("neon.tech")
+          ? { rejectUnauthorized: false }
+          : undefined,
+    });
+  globalForPrisma.pgPool = pool;
+  return new PrismaClient({ adapter: new PrismaPg(pool) });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
+}
 
-// Reuse across hot reloads and Vercel warm instances
-globalForPrisma.prisma = prisma;
+/** Lazy proxy so Next.js build page-collection does not open DB at import time. */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getPrisma();
+    const value = Reflect.get(client, prop, receiver);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});
