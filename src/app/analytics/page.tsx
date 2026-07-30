@@ -1,15 +1,13 @@
 import { AppPage } from "@/components/shell/AppPage";
 import { Panel } from "@/components/ui/Panel";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import { formatViews } from "@/lib/score-bands";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const session = await requirePageSession();
 
   const content = await prisma.content.findMany({
     where: { userId: session.userId },

@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1098.0",
+    "@clerk/backend": "^3.14.0",
+    "@clerk/nextjs": "^7.6.3",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.8.0",
@@ -30,12 +32,14 @@
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "resend": "^6.18.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/cookie": "^0.6.0",
     "@types/ioredis": "^4.28.10",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

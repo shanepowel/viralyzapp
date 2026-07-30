@@ -1,44 +1,56 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const AUTH_COOKIE = "viralyz_session";
+const clerkEnabled = Boolean(
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() &&
+    process.env.CLERK_SECRET_KEY?.trim(),
+);
 
-const PUBLIC_PREFIXES = [
-  "/login",
-  "/kit/",
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/login(.*)",
+  "/waitlist(.*)",
+  "/claim-invite(.*)",
+  "/kit/(.*)",
   "/api/login",
   "/api/logout",
   "/api/signup",
-  "/api/auth/",
+  "/api/auth(.*)",
   "/api/health",
-  "/api/platforms/oauth/",
-  "/_next/",
-  "/favicon.ico",
-  "/uploads/",
-];
+  "/api/waitlist",
+  "/api/password-reset(.*)",
+  "/api/claim-invite",
+  "/api/webhooks/clerk",
+  "/api/platforms/oauth/(.*)/callback",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+]);
 
-function isPublic(pathname: string) {
-  if (pathname === "/" || pathname === "") return true;
-  if (pathname === "/kit" || pathname.startsWith("/kit/")) return true;
-  if (pathname === "/api/login" || pathname === "/api/logout" || pathname === "/api/signup") {
-    return true;
-  }
-  if (pathname === "/api/health") return true;
-  // OAuth callbacks must be reachable without a session cookie edge-case
-  if (pathname.startsWith("/api/platforms/oauth/") && pathname.endsWith("/callback")) {
-    return true;
-  }
-  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
-}
-
-export function middleware(req: NextRequest) {
+function legacyMiddleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (isPublic(pathname)) {
-    return NextResponse.next();
-  }
 
-  // Allow static assets in public/
-  if (/\.(svg|png|jpg|jpeg|gif|webp|ico)$/.test(pathname)) {
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/waitlist") ||
+    pathname.startsWith("/claim-invite") ||
+    pathname.startsWith("/kit/") ||
+    pathname.startsWith("/api/login") ||
+    pathname.startsWith("/api/logout") ||
+    pathname.startsWith("/api/signup") ||
+    pathname.startsWith("/api/auth/") ||
+    pathname === "/api/health" ||
+    pathname === "/api/waitlist" ||
+    pathname === "/api/claim-invite" ||
+    pathname.startsWith("/api/password-reset") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/uploads/") ||
+    pathname === "/favicon.ico" ||
+    (pathname.startsWith("/api/platforms/oauth/") && pathname.endsWith("/callback")) ||
+    /\.(svg|png|jpg|jpeg|gif|webp|ico)$/.test(pathname)
+  ) {
     return NextResponse.next();
   }
 
@@ -56,6 +68,22 @@ export function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
+const withClerk = clerkMiddleware(async (auth, req) => {
+  if (isPublicRoute(req)) return;
+  const { userId } = await auth();
+  if (!userId) {
+    if (req.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", req.nextUrl.pathname);
+    return NextResponse.redirect(url);
+  }
+});
+
+export default clerkEnabled ? withClerk : legacyMiddleware;
+
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  matcher: ["/((?!_next/static|_next/image|.*\\..*).*)"],
 };

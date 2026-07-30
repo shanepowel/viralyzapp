@@ -13,11 +13,13 @@ import {
   Library,
   LogOut,
   MessageSquare,
+  Settings,
   Sparkles,
   Target,
   TrendingUp,
   Users,
 } from "lucide-react";
+import { ClerkSignOut } from "@/components/shell/ClerkSignOut";
 
 type Props = {
   children: ReactNode;
@@ -26,6 +28,9 @@ type Props = {
   plan?: string;
   creditsRemaining?: number;
   libraryCount?: number;
+  isAdmin?: boolean;
+  showOnboarding?: boolean;
+  clerkEnabled?: boolean;
 };
 
 type NavItem = {
@@ -76,7 +81,12 @@ export function AppShell({
   children,
   userName = "Creator",
   momentum = [5, 7, 6, 9, 11, 14],
+  plan,
+  creditsRemaining,
   libraryCount,
+  isAdmin = false,
+  showOnboarding = false,
+  clerkEnabled = false,
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -86,6 +96,19 @@ export function AppShell({
     router.push("/login");
     router.refresh();
   }
+
+  async function dismissOnboarding() {
+    await fetch("/api/user/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ done: true }),
+    });
+    router.refresh();
+  }
+
+  const creditLabel =
+    plan === "unlimited" ? "Unlimited scores" : `${creditsRemaining ?? 0} scores left`;
+  const adminActive = pathname.startsWith("/admin");
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[232px_1fr] min-h-screen bg-[var(--paper)] text-[var(--ink)]">
@@ -105,6 +128,9 @@ export function AppShell({
           >
             ✦&nbsp;&nbsp;Score content
           </Link>
+          <p className="m-0 mt-2 px-1 font-mono text-[10px] text-[var(--ink-3)] text-center">
+            {creditLabel}
+          </p>
         </div>
 
         {navWithGroups.map(({ item, showGroup }) => {
@@ -146,6 +172,20 @@ export function AppShell({
           );
         })}
 
+        {isAdmin ? (
+          <Link
+            href="/admin"
+            className={`nav-item flex items-center gap-[11px] px-2.5 py-2 rounded-[10px] text-[13.5px] cursor-pointer border-l-[2.5px] mt-2 ${
+              adminActive
+                ? "bg-[var(--violet-soft)] text-[var(--violet-deep)] font-semibold border-[var(--violet)]"
+                : "text-[var(--ink-2)] font-medium border-transparent"
+            }`}
+          >
+            <Settings className="w-[17px] h-[17px] shrink-0" strokeWidth={2} />
+            Admin
+          </Link>
+        ) : null}
+
         <div className="mt-auto pt-3.5 px-2.5 border-t border-[var(--line)]">
           <div className="flex items-center gap-2.5">
             <div
@@ -169,15 +209,19 @@ export function AppShell({
                 ))}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              title="Sign out"
-              className="ml-auto p-0 border-none bg-transparent cursor-pointer text-[var(--ink)] opacity-40 hover:opacity-80"
-              aria-label="Sign out"
-            >
-              <LogOut className="w-[15px]" strokeWidth={2} />
-            </button>
+            {clerkEnabled ? (
+              <ClerkSignOut />
+            ) : (
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                title="Sign out"
+                className="ml-auto p-0 border-none bg-transparent cursor-pointer text-[var(--ink)] opacity-40 hover:opacity-80"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-[15px]" strokeWidth={2} />
+              </button>
+            )}
           </div>
           <div className="text-[10.5px] text-[var(--ink-3)] pt-2.5 px-0">
             A Digiteq Holdings company
@@ -185,7 +229,35 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="px-4 md:px-9 pb-12 max-w-[1160px] w-full">{children}</main>
+      <main className="px-4 md:px-9 pb-12 max-w-[1160px] w-full">
+        {showOnboarding ? (
+          <div className="mt-6 mb-2 rounded-[16px] border border-[rgba(108,76,241,0.35)] bg-[var(--violet-soft)] px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1">
+              <div className="font-display font-semibold text-[15px]">Welcome — score your first video</div>
+              <p className="m-0 mt-1 text-[13px] text-[var(--ink-2)]">
+                Upload any short-form clip. You&apos;ll get a Viralyz Score, strengths, and next moves
+                in under a minute.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Link
+                href="/score"
+                className="inline-flex items-center justify-center rounded-full bg-[var(--violet)] text-white text-[13px] font-semibold px-4 py-2 no-underline"
+              >
+                Score a video
+              </Link>
+              <button
+                type="button"
+                onClick={() => void dismissOnboarding()}
+                className="rounded-full border border-[var(--line-strong)] bg-[var(--card)] text-[13px] px-3 py-2 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {children}
+      </main>
     </div>
   );
 }

@@ -1,24 +1,33 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/AppShell";
-import { getSession, getSessionUser } from "@/lib/auth";
+import { isClerkEnabled } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { getClerkIdentity, resolveAppUser } from "@/lib/users";
 
 export async function AppPage({ children }: { children: ReactNode }) {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const user = await resolveAppUser();
+  if (!user) {
+    if (isClerkEnabled()) {
+      const clerk = await getClerkIdentity();
+      if (clerk) redirect("/claim-invite");
+    }
+    redirect("/login");
+  }
 
-  const user = await getSessionUser();
   const libraryCount = await prisma.content.count({
-    where: { userId: session.userId, NOT: { title: { startsWith: "Archive" } } },
+    where: { userId: user.id, NOT: { title: { startsWith: "Archive" } } },
   });
 
   return (
     <AppShell
-      userName={user?.name ?? session.name}
-      plan={user?.plan}
-      creditsRemaining={user?.creditsRemaining}
+      userName={user.name}
+      plan={user.plan}
+      creditsRemaining={user.creditsRemaining}
       libraryCount={libraryCount}
+      isAdmin={user.role === "admin"}
+      showOnboarding={!user.onboardingDone}
+      clerkEnabled={isClerkEnabled()}
       momentum={[5, 7, 6, 9, 11, 14]}
     >
       {children}
