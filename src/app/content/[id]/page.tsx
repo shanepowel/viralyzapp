@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
 import { ScoreResultsView } from "@/components/score/ScoreResultsView";
 import { getSessionUser, requirePageSession } from "@/lib/auth";

@@ -33,12 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const content = isClerkEnabled() ? (
-    <ClerkProvider
-      signInUrl="/login"
-      signUpUrl="/login"
-      afterSignInUrl="/score"
-      afterSignUpUrl="/score"
-    >
+    <ClerkProvider signInUrl="/login" signUpUrl="/login" afterSignOutUrl="/">
       {children}
     </ClerkProvider>
   ) : (

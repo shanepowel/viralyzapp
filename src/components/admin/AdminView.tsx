@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 type Invite = {
@@ -31,10 +31,16 @@ type UserRow = {
   role: string;
 };
 
-export function AdminView() {
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
-  const [users, setUsers] = useState<UserRow[]>([]);
+type Props = {
+  initialInvites: Invite[];
+  initialWaitlist: WaitlistEntry[];
+  initialUsers: UserRow[];
+};
+
+export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Props) {
+  const [invites, setInvites] = useState(initialInvites);
+  const [waitlist, setWaitlist] = useState(initialWaitlist);
+  const [users, setUsers] = useState(initialUsers);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -52,10 +58,6 @@ export function AdminView() {
     if (w.entries) setWaitlist(w.entries);
     if (u.users) setUsers(u.users);
   }
-
-  useEffect(() => {
-    void refresh();
-  }, []);
 
   async function createInvites(e: FormEvent) {
     e.preventDefault();

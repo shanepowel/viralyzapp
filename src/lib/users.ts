@@ -120,7 +120,8 @@ export async function getClerkIdentity(): Promise<ClerkIdentity | null> {
     const { userId } = await auth();
     if (!userId) return null;
     const cu = await currentUser();
-    const email = cu?.primaryEmailAddress?.emailAddress ?? cu?.emailAddresses?.[0]?.emailAddress;
+    if (!cu) return null;
+    const email = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses?.[0]?.emailAddress;
     if (!email) return null;
     const name =
       cu.fullName?.trim() ||
