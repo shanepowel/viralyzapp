@@ -48,6 +48,7 @@ next-env.d.ts
 # sqlite
 *.db
 *.db-journal
+!prisma/demo.db
 
 # local uploads
 /public/uploads

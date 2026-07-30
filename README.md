@@ -96,9 +96,10 @@ External scorer contract: `POST {SCORING_SERVICE_URL}/v1/score` with `ScoreInput
 
 | Env | Config |
 |-----|--------|
-| **local** | `DATABASE_URL=file:./prisma/dev.db` (absolute-resolved at runtime) |
+| **local** | `DATABASE_URL=file:./prisma/dev.db` |
+| **Vercel** | SQLite is copied from `prisma/demo.db` into `/tmp/viralyz/` (project FS is read-only). Seeded: Maya + tester. |
 | **local + services** | `docker compose up -d` + worker |
-| **preview / prod** | Hosted Postgres, S3, Redis + worker, real OAuth, `SCORING_SERVICE_URL` |
+| **durable prod** | Prefer hosted Postgres — set `DATABASE_URL` to Postgres and swap the Prisma adapter |
 
 ## Docs
 

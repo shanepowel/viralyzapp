@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ScoreRing } from "@/components/ui/ScoreRing";
+import { SiteNav } from "@/components/marketing/SiteNav";
 
 const STEPS = [
   {
@@ -25,26 +26,7 @@ const STEPS = [
 export function MarketingLanding() {
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] overflow-x-hidden">
-      <header className="relative z-10 flex items-center justify-between px-6 sm:px-10 py-5 max-w-[1160px] mx-auto">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="w-5 h-5 rounded-full border-[3px] border-[var(--violet)] border-t-[var(--s90)] -rotate-45"
-            aria-hidden
-          />
-          <span className="font-display font-bold text-[17px] tracking-tight">Viralyz</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-[13.5px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]"
-          >
-            Sign in
-          </Link>
-          <Link href="/login?mode=signup">
-            <Button className="!text-[12.5px] !px-4 !py-2">Start free</Button>
-          </Link>
-        </div>
-      </header>
+      <SiteNav />
 
       <section className="relative min-h-[calc(100vh-72px)] flex flex-col justify-center px-6 sm:px-10 pb-16">
         <div
