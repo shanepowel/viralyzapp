@@ -19,6 +19,9 @@ const pool = new Pool({
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 async function main() {
+  await prisma.passwordResetToken.deleteMany();
+  await prisma.waitlistEntry.deleteMany();
+  await prisma.invite.deleteMany();
   await prisma.toolRun.deleteMany();
   await prisma.engageComment.deleteMany();
   await prisma.competitorPost.deleteMany();
@@ -46,6 +49,9 @@ async function main() {
       handle: "mayacooks",
       plan: "unlimited",
       creditsRemaining: 999,
+      role: "admin",
+      onboardingDone: true,
+      emailVerifiedAt: new Date(),
       platforms: {
         create: [
           { provider: "tiktok", handle: "@mayacooks", syncStatus: "ok" },
@@ -99,6 +105,9 @@ async function main() {
       handle: "betatester",
       plan: "credits",
       creditsRemaining: 10,
+      role: "user",
+      onboardingDone: false,
+      emailVerifiedAt: new Date(),
       mediaKit: {
         create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
       },
@@ -469,9 +478,23 @@ async function main() {
     ],
   });
 
+  const inviteCodes = ["VLZDEMO1", "VLZDEMO2", "VLZDEMO3", "VLZDEMO4", "VLZDEMO5"];
+  for (const code of inviteCodes) {
+    await prisma.invite.create({
+      data: {
+        code,
+        maxUses: 1,
+        note: "Seed invite",
+        createdBy: user.id,
+        expiresAt: new Date(Date.now() + 90 * 86400000),
+      },
+    });
+  }
+
   console.log("Seeded Viralyz beta data");
-  console.log("Maya: maya@viralyz.com / demo1234");
+  console.log("Maya: maya@viralyz.com / demo1234 (admin)");
   console.log("Tester: tester@viralyz.com / tester1234");
+  console.log("Sample invites:", inviteCodes.join(", "));
   console.log("Hero content id:", kitchen.id);
 }
 

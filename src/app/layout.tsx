@@ -1,5 +1,7 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
+import { isClerkEnabled } from "@/lib/env";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -30,6 +32,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const content = isClerkEnabled() ? (
+    <ClerkProvider
+      signInUrl="/login"
+      signUpUrl="/login"
+      afterSignInUrl="/score"
+      afterSignUpUrl="/score"
+    >
+      {children}
+    </ClerkProvider>
+  ) : (
+    children
+  );
+
   return (
     <html
       lang="en"
@@ -45,7 +60,7 @@ export default function RootLayout({
           } as React.CSSProperties
         }
       >
-        {children}
+        {content}
       </body>
     </html>
   );

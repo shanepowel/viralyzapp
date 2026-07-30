@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { LoginView } from "@/components/auth/LoginView";
+import { isClerkEnabled, isInviteOnly } from "@/lib/env";
 import { getSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -14,12 +15,12 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage() {
   const session = await getSession();
   if (session) {
-    redirect("/");
+    redirect("/score");
   }
 
   return (
     <Suspense fallback={<div className="min-h-screen bg-[var(--paper)]" />}>
-      <LoginView />
+      <LoginView clerkEnabled={isClerkEnabled()} inviteOnly={isInviteOnly()} />
     </Suspense>
   );
 }

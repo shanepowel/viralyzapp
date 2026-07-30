@@ -3,16 +3,14 @@ import { AppPage } from "@/components/shell/AppPage";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { ScoreRing } from "@/components/ui/ScoreRing";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatViews } from "@/lib/score-bands";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function MediaKitPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const session = await requirePageSession();
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: session.userId },

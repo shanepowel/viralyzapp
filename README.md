@@ -6,6 +6,9 @@ Creator scoring product — shippable beta for real testing. Signal design syste
 
 - **Next.js** (App Router) + TypeScript + Tailwind CSS v4
 - **Prisma 7** + Postgres (Neon)
+- Auth: email/password **or** Clerk SSO (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`)
+- Access: invite-only signup by default (`INVITE_ONLY=true`) + waitlist + admin invites
+- Email: Resend for invites / password reset (console mock when unset)
 - Scoring: local heuristic **or** external ML via `SCORING_SERVICE_URL`
 - Storage: local `public/uploads/` **or** S3 / MinIO
 - Jobs: in-process queue **or** BullMQ + Redis (`npm run worker`)
@@ -35,10 +38,18 @@ Auth API (canonical production path):
 
 | Email | Password | Notes |
 |-------|----------|--------|
-| `maya@viralyz.com` | `demo1234` | Seeded demo library, unlimited scores |
-| `tester@viralyz.com` | `tester1234` | Empty credits plan (10 scores) |
+| `maya@viralyz.com` | `demo1234` | Admin, seeded demo library, unlimited scores |
+| `tester@viralyz.com` | `tester1234` | Credits plan (10 scores) |
 
-Or **Create account** on `/login` for a fresh user.
+Seed also creates sample invites: `VLZDEMO1` … `VLZDEMO5`.
+
+**Create account** on `/login` requires an invite code while `INVITE_ONLY=true` (default). No code? `/waitlist`. Admins manage invites/credits at `/admin`.
+
+### Clerk SSO
+
+1. Create a Clerk application and set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`.
+2. Allow redirect URLs for `{NEXT_PUBLIC_APP_URL}/login` and `/score`.
+3. Existing email users are linked on first SSO sign-in. New SSO users in invite-only mode claim a code at `/claim-invite`.
 
 ### Core flows
 
@@ -61,6 +72,9 @@ curl http://localhost:3000/api/health
 
 | Concern | Env | Local default | Production |
 |---------|-----|---------------|------------|
+| **SSO** | `NEXT_PUBLIC_CLERK_*` / `CLERK_SECRET_KEY` | Email/password cookies | Clerk Google/SSO |
+| **Invites** | `INVITE_ONLY`, `ADMIN_EMAILS` | Invite-only on | Admin `/admin` + waitlist |
+| **Email** | `RESEND_API_KEY`, `RESEND_FROM` | Console mock | Resend |
 | **Queue** | `REDIS_URL` | Inline `setTimeout` | BullMQ — run `npm run worker` |
 | **Storage** | `S3_*` | `public/uploads/` | S3-compatible (AWS / MinIO) |
 | **Scoring** | `SCORING_SERVICE_URL` | `src/lib/scorer.ts` | `POST /v1/score` ML service |

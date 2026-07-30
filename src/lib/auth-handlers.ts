@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AUTH_COOKIE, hashPassword, sessionCookieValue, verifyPassword } from "@/lib/auth";
+import { isInviteOnly } from "@/lib/env";
+import { consumeInvite } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const loginSchema = z
   .object({
@@ -17,6 +20,7 @@ const signupSchema = z.object({
   name: z.string().min(1).max(80),
   email: z.string().email(),
   password: z.string().min(8).max(100),
+  inviteCode: z.string().min(4).max(32).optional(),
   handle: z
     .string()
     .min(2)
@@ -46,16 +50,20 @@ function sessionResponse(user: {
   return res;
 }
 
-/** Create / repair seeded tester accounts if missing on this database. */
 async function ensureDemoUsers() {
   const maya = await prisma.user.findUnique({ where: { email: "maya@viralyz.com" } });
   if (maya) {
-    const ok = await verifyPassword("demo1234", maya.passwordHash);
-    if (!ok) {
+    if (!maya.passwordHash || !(await verifyPassword("demo1234", maya.passwordHash))) {
       await prisma.user.update({
         where: { id: maya.id },
-        data: { passwordHash: await hashPassword("demo1234"), plan: "unlimited" },
+        data: {
+          passwordHash: await hashPassword("demo1234"),
+          plan: "unlimited",
+          role: "admin",
+        },
       });
+    } else if (maya.role !== "admin") {
+      await prisma.user.update({ where: { id: maya.id }, data: { role: "admin" } });
     }
   } else {
     await prisma.user.create({
@@ -66,6 +74,7 @@ async function ensureDemoUsers() {
         passwordHash: await hashPassword("demo1234"),
         plan: "unlimited",
         creditsRemaining: 999,
+        role: "admin",
         mediaKit: {
           create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
         },
@@ -93,6 +102,15 @@ async function ensureDemoUsers() {
 
 export async function handleLogin(req: Request) {
   try {
+    const ip = clientIp(req);
+    const rl = await rateLimit({ key: `login:${ip}`, limit: 30, windowSec: 60 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Try again shortly." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
+
     const json = await req.json();
     const parsed = loginSchema.safeParse(json);
     if (!parsed.success) {
@@ -109,7 +127,7 @@ export async function handleLogin(req: Request) {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
@@ -122,16 +140,41 @@ export async function handleLogin(req: Request) {
 
 export async function handleSignup(req: Request) {
   try {
+    const ip = clientIp(req);
+    const rl = await rateLimit({ key: `signup:${ip}`, limit: 10, windowSec: 60 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Too many signups from this network. Try again shortly." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
+
     const json = await req.json();
     const parsed = signupSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Enter a name, valid email, and password (8+ chars)." },
+        { error: "Enter a name, valid email, password (8+ chars), and invite code if required." },
         { status: 400 },
       );
     }
 
     const email = parsed.data.email.toLowerCase();
+    let inviteCodeUsed: string | null = null;
+
+    if (isInviteOnly()) {
+      if (!parsed.data.inviteCode) {
+        return NextResponse.json(
+          { error: "An invite code is required. Join the waitlist if you don't have one." },
+          { status: 403 },
+        );
+      }
+      const consumed = await consumeInvite(parsed.data.inviteCode, email);
+      if (!consumed.ok) {
+        return NextResponse.json({ error: consumed.error }, { status: 403 });
+      }
+      inviteCodeUsed = consumed.invite.code;
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
@@ -153,6 +196,8 @@ export async function handleSignup(req: Request) {
         passwordHash: await hashPassword(parsed.data.password),
         plan: "credits",
         creditsRemaining: 10,
+        inviteCodeUsed,
+        emailVerifiedAt: null,
         mediaKit: {
           create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
         },

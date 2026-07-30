@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { hasRedis, hasS3, hasScoringService } from "@/lib/env";
+import {
+  hasRedis,
+  hasResend,
+  hasS3,
+  hasScoringService,
+  isClerkEnabled,
+  isInviteOnly,
+} from "@/lib/env";
 import { isOAuthConfigured } from "@/lib/oauth";
 import { queueBackend } from "@/lib/queue";
 import { scoringBackend } from "@/lib/scoring-service";
@@ -16,6 +23,9 @@ export async function GET() {
     redis: hasRedis(),
     s3: hasS3(),
     scoringService: hasScoringService(),
+    clerk: isClerkEnabled(),
+    resend: hasResend(),
+    inviteOnly: isInviteOnly(),
     oauth: {
       tiktok: isOAuthConfigured("tiktok"),
       instagram: isOAuthConfigured("instagram"),

@@ -1,6 +1,8 @@
-import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { isClerkEnabled } from "@/lib/env";
+import { getClerkIdentity, resolveAppUser } from "@/lib/users";
 
 export const AUTH_COOKIE = "viralyz_session";
 
@@ -18,7 +20,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-export async function getSession(): Promise<SessionUser | null> {
+/** Cookie-only session (used by login handlers). Prefer resolveAppUser / getSession for pages. */
+export async function getCookieSession(): Promise<SessionUser | null> {
   const jar = await cookies();
   const raw = jar.get(AUTH_COOKIE)?.value;
   if (!raw) return null;
@@ -29,6 +32,13 @@ export async function getSession(): Promise<SessionUser | null> {
   } catch {
     return null;
   }
+}
+
+/** App session — Clerk identity or cookie. */
+export async function getSession(): Promise<SessionUser | null> {
+  const user = await resolveAppUser();
+  if (!user) return null;
+  return { userId: user.id, email: user.email, name: user.name };
 }
 
 export function sessionCookieValue(user: SessionUser): string {
@@ -43,19 +53,17 @@ export async function requireSession(): Promise<SessionUser> {
   return session;
 }
 
-export async function getSessionUser() {
+/** For server pages — redirects to claim-invite (SSO) or login. */
+export async function requirePageSession(): Promise<SessionUser> {
   const session = await getSession();
-  if (!session) return null;
-  return prisma.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      handle: true,
-      plan: true,
-      creditsRemaining: true,
-      avatarUrl: true,
-    },
-  });
+  if (session) return session;
+  if (isClerkEnabled()) {
+    const clerk = await getClerkIdentity();
+    if (clerk) redirect("/claim-invite");
+  }
+  redirect("/login");
+}
+
+export async function getSessionUser() {
+  return resolveAppUser();
 }
