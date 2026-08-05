@@ -30,6 +30,10 @@ export function ScoreUploadView() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!file && !sourceUrl.trim()) {
+      setError("Upload a video or paste a link before scoring — a title alone can't be scored.");
+      return;
+    }
     setBusy(true);
     try {
       setStatus("Creating draft…");
@@ -162,9 +166,18 @@ export function ScoreUploadView() {
           </div>
         )}
 
-        <Button type="submit" className="w-full py-3" disabled={busy || !title.trim()}>
+        <Button
+          type="submit"
+          className="w-full py-3"
+          disabled={busy || !title.trim() || (!file && !sourceUrl.trim())}
+        >
           {busy ? "Working…" : "✦ Score this content"}
         </Button>
+        {!file && !sourceUrl.trim() && (
+          <p className="text-[12px] text-[var(--ink-3)] -mt-2">
+            Upload a video or paste a link — a title alone can&rsquo;t be scored.
+          </p>
+        )}
       </form>
     </div>
   );

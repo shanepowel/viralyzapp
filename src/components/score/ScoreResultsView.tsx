@@ -161,15 +161,35 @@ export function ScoreResultsView({ data: initial }: Props) {
               </span>
             )}
           </div>
-          <div className="text-[12.5px] text-[var(--ink-3)]">
-            We are{" "}
-            <b className="text-[var(--ink-2)]">{data.score.confidencePct}% confident</b> in this
-            prediction, based on {data.score.sampleSize} of your posts. Predicted views:{" "}
+          <div className="text-[12.5px] text-[var(--ink-3)] mb-1.5">
+            Scored on{" "}
             <b className="text-[var(--ink-2)]">
-              {formatViews(data.score.predictedViewsLow)} to{" "}
-              {formatViews(data.score.predictedViewsHigh)}
+              {data.score.factorsScored} of {data.score.factorsTotal} factors
             </b>
-            .
+            . {data.score.factorsScored < data.score.factorsTotal && "Upload a video or connect a platform to unlock the rest."}
+          </div>
+          <div className="text-[12.5px] text-[var(--ink-3)]">
+            {data.score.confidencePct != null ? (
+              <>
+                We are{" "}
+                <b className="text-[var(--ink-2)]">{data.score.confidencePct}% confident</b> in
+                this prediction, based on {data.score.sampleSize} of your posts.{" "}
+              </>
+            ) : (
+              "Not enough posting history yet to estimate confidence. "
+            )}
+            {data.score.predictedViewsLow != null && data.score.predictedViewsHigh != null ? (
+              <>
+                Predicted views:{" "}
+                <b className="text-[var(--ink-2)]">
+                  {formatViews(data.score.predictedViewsLow)} to{" "}
+                  {formatViews(data.score.predictedViewsHigh)}
+                </b>
+                .
+              </>
+            ) : (
+              "Connect a platform and post a few times to unlock view predictions."
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -182,10 +202,31 @@ export function ScoreResultsView({ data: initial }: Props) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-5">
         {COMPONENT_ORDER.map((key) => {
-          const val = data.score.componentScores[key];
-          const note = data.score.componentNotes[key];
-          const color = componentColor(val);
+          const result = data.score.componentResults[key];
           const label = key[0].toUpperCase() + key.slice(1);
+
+          if (result.status === "unavailable") {
+            return (
+              <div
+                key={key}
+                className="bg-[var(--tint)] border border-dashed border-[var(--line-strong)] rounded-[14px] p-4 opacity-70"
+              >
+                <div className="flex justify-between items-baseline mb-2">
+                  <span className="font-semibold text-[13px] text-[var(--ink-3)]">{label}</span>
+                  <span className="font-mono text-[11px] text-[var(--ink-3)] uppercase tracking-wide">
+                    N/A
+                  </span>
+                </div>
+                <div className="h-1.5 bg-[var(--line)] rounded-full overflow-hidden mb-2" />
+                <p className="text-[11.5px] text-[var(--ink-3)] leading-[1.45] m-0 italic">
+                  {result.reason}
+                </p>
+              </div>
+            );
+          }
+
+          const val = result.value;
+          const color = componentColor(val);
           return (
             <div
               key={key}
@@ -201,7 +242,7 @@ export function ScoreResultsView({ data: initial }: Props) {
                   style={{ width: `${(val / 20) * 100}%`, background: color }}
                 />
               </div>
-              <p className="text-[11.5px] text-[var(--ink-2)] leading-[1.45] m-0">{note}</p>
+              <p className="text-[11.5px] text-[var(--ink-2)] leading-[1.45] m-0">{result.note}</p>
             </div>
           );
         })}
@@ -229,27 +270,39 @@ export function ScoreResultsView({ data: initial }: Props) {
         meta={<span className="text-[12px] text-[var(--ink-3)]">Predicted watch curve</span>}
       >
         <div className="p-5">
-          <svg className="w-full h-[120px]" viewBox="0 0 600 120" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#6C4CF1" stopOpacity="0.18" />
-                <stop offset="1" stopColor="#6C4CF1" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {curve && (
-              <>
-                <path d={curve.area} fill="url(#rg)" />
-                <path d={curve.line} fill="none" stroke="#6C4CF1" strokeWidth="2.5" />
-              </>
-            )}
-            {riskX && <circle cx={riskX.x} cy={riskX.y} r="5" fill="#D9950B" />}
-          </svg>
-          {data.retentionCurve?.riskNote && (
-            <div className="text-[12px] text-[var(--ink-2)] flex gap-2 items-center mt-2.5">
-              <span className="w-[18px] h-[18px] rounded-full bg-[var(--s50-soft)] text-[var(--s50)] flex items-center justify-center text-[10px] font-bold shrink-0">
-                !
+          {data.retentionCurve ? (
+            <>
+              <svg className="w-full h-[120px]" viewBox="0 0 600 120" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stopColor="#6C4CF1" stopOpacity="0.18" />
+                    <stop offset="1" stopColor="#6C4CF1" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {curve && (
+                  <>
+                    <path d={curve.area} fill="url(#rg)" />
+                    <path d={curve.line} fill="none" stroke="#6C4CF1" strokeWidth="2.5" />
+                  </>
+                )}
+                {riskX && <circle cx={riskX.x} cy={riskX.y} r="5" fill="#D9950B" />}
+              </svg>
+              {data.retentionCurve.riskNote && (
+                <div className="text-[12px] text-[var(--ink-2)] flex gap-2 items-center mt-2.5">
+                  <span className="w-[18px] h-[18px] rounded-full bg-[var(--s50-soft)] text-[var(--s50)] flex items-center justify-center text-[10px] font-bold shrink-0">
+                    !
+                  </span>
+                  {data.retentionCurve.riskNote}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="h-[120px] flex flex-col items-center justify-center text-center gap-1.5 text-[var(--ink-3)]">
+              <span className="text-[13px] font-semibold">No watch-retention estimate yet</span>
+              <span className="text-[12px] max-w-[380px]">
+                Upload the video for this draft to see an estimated watch curve. Without a video
+                there is nothing real to base one on.
               </span>
-              {data.retentionCurve.riskNote}
             </div>
           )}
         </div>

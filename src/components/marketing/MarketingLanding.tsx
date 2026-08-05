@@ -76,7 +76,7 @@ export function MarketingLanding() {
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
                 <div className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-[var(--ink-3)] mb-1">
-                  Score results
+                  Score results — example
                 </div>
                 <div className="font-display text-[18px] font-semibold">3 mistakes killing your hook</div>
               </div>
