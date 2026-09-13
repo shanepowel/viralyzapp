@@ -24,9 +24,11 @@ export async function GET() {
       .map((c) => c.versions[0]?.score?.overallScore)
       .filter((n): n is number => n != null)
       .reverse();
+    // Empty when the user has no scored content. Previously fell back to a
+    // hardcoded series, which rendered an invented trend line for new accounts.
     return NextResponse.json({
       userId: auth.session.userId,
-      series: series.length ? series : [5, 7, 6, 9, 11, 14],
+      series,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load momentum";

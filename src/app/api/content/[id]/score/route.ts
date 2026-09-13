@@ -34,6 +34,16 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Content not found" }, { status: 404 });
     }
 
+    // No claim without a measurement: a title and duration alone are not
+    // analysable content. Require a video upload or a source link before
+    // a score can be produced at all.
+    if (!content.mediaUrl && !content.sourceUrl) {
+      return NextResponse.json(
+        { error: "Upload a video or paste a link before scoring." },
+        { status: 400 },
+      );
+    }
+
     const user = await prisma.user.findUniqueOrThrow({ where: { id: auth.session.userId } });
     if (user.plan !== "unlimited" && user.creditsRemaining <= 0) {
       return NextResponse.json(

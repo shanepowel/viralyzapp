@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { LoginView } from "@/components/auth/LoginView";
-import { isClerkEnabled, isInviteOnly } from "@/lib/env";
+import { isClerkEnabled, isDemoLoginEnabled, isInviteOnly } from "@/lib/env";
 import { getSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -20,7 +20,11 @@ export default async function LoginPage() {
 
   return (
     <Suspense fallback={<div className="min-h-screen bg-[var(--paper)]" />}>
-      <LoginView clerkEnabled={isClerkEnabled()} inviteOnly={isInviteOnly()} />
+      <LoginView
+        clerkEnabled={isClerkEnabled()}
+        inviteOnly={isInviteOnly()}
+        demoEnabled={isDemoLoginEnabled()}
+      />
     </Suspense>
   );
 }

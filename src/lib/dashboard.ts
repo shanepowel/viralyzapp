@@ -45,7 +45,25 @@ export async function getDashboard(userId: string): Promise<DashboardResponse> {
       ? Math.round(monthlyScores.reduce((a, b) => a + b, 0) / monthlyScores.length)
       : 0;
   const monthlyPostCount = monthlyScores.length;
-  const monthlyScoreDelta = monthlyScores.length >= 2 ? 8 : monthlyScores.length === 1 ? 0 : 0;
+  const hasMonthlyScoreData = monthlyPostCount > 0;
+
+  // Real month-over-month comparison (previous calendar month), rather than an invented delta.
+  const prevMonthStart = new Date(monthStart);
+  prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+  const prevMonth = scored.filter(
+    (c) =>
+      c.versions[0]!.score!.computedAt >= prevMonthStart &&
+      c.versions[0]!.score!.computedAt < monthStart &&
+      !c.title.startsWith("Archive"),
+  );
+  const prevMonthScores = prevMonth.map((c) => c.versions[0]!.score!.overallScore);
+  const prevMonthScore =
+    prevMonthScores.length > 0
+      ? Math.round(prevMonthScores.reduce((a, b) => a + b, 0) / prevMonthScores.length)
+      : null;
+  const monthlyScoreDelta =
+    hasMonthlyScoreData && prevMonthScore != null ? monthlyScore - prevMonthScore : null;
+
   const monthlySparkline =
     monthlyScores.length > 0
       ? [...monthlyScores.slice(-5), monthlyScore].slice(-6)
@@ -61,10 +79,9 @@ export async function getDashboard(userId: string): Promise<DashboardResponse> {
     const withinTolerance = Math.abs(actual - mid) / Math.max(mid, 1) <= 0.35;
     if (withinBand || withinTolerance) hits += 1;
   }
+  const hasAccuracyData = withActual.length > 0;
   const accuracySampleSize = Math.max(withActual.length, user.insights[0]?.sampleSize ?? 0);
-  const liveAccuracy =
-    withActual.length > 0 ? Math.round((hits / withActual.length) * 100) : 0;
-  const accuracyPct = user.email === "maya@viralyz.com" && withActual.length > 0 ? 82 : liveAccuracy;
+  const liveAccuracy = hasAccuracyData ? Math.round((hits / withActual.length) * 100) : 0;
 
   const draftHigh = scored
     .filter((c) => c.status === "draft" && c.versions[0]?.score)
@@ -131,26 +148,32 @@ export async function getDashboard(userId: string): Promise<DashboardResponse> {
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
+  // Real recent-score trend (most recently updated scored posts, oldest first). No fallback
+  // filler — an account with no scored posts yet gets an empty trend, not invented movement.
+  const momentum = scored
+    .slice(0, 6)
+    .map((c) => c.versions[0]!.score!.overallScore)
+    .reverse();
+
   return {
     user: {
       id: user.id,
       name: user.name,
       plan: user.plan,
       creditsRemaining: user.creditsRemaining,
-      momentum: [5, 7, 6, 9, 11, 14],
+      momentum,
     },
-    monthlyScore: user.email === "maya@viralyz.com" && monthlyScore === 0 ? 76 : monthlyScore,
-    monthlyScoreDelta: user.email === "maya@viralyz.com" ? 8 : monthlyScoreDelta,
-    monthlyPostCount:
-      user.email === "maya@viralyz.com" ? Math.max(monthlyPostCount, 12) : monthlyPostCount,
-    monthlySparkline:
-      user.email === "maya@viralyz.com" && monthlyScores.length === 0
-        ? [52, 58, 55, 64, 70, 76]
-        : monthlySparkline,
-    predictionAccuracyPct:
-      user.email === "maya@viralyz.com" && accuracyPct === 0 ? 82 : accuracyPct,
-    accuracyDelta: 5,
-    accuracySampleSize: user.email === "maya@viralyz.com" ? 34 : accuracySampleSize,
+    monthlyScore: hasMonthlyScoreData ? monthlyScore : null,
+    monthlyScoreDelta,
+    monthlyPostCount,
+    monthlySparkline,
+    hasMonthlyScoreData,
+    predictionAccuracyPct: hasAccuracyData ? liveAccuracy : null,
+    // No historical accuracy snapshot is tracked yet, so there is nothing honest to diff
+    // against — leave it null rather than inventing a trend.
+    accuracyDelta: null,
+    accuracySampleSize,
+    hasAccuracyData,
     nextBestAction,
     recentScores: recent.slice(0, 4),
     insights: user.insights.map((i) => ({

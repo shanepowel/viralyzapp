@@ -1,4 +1,22 @@
-import type { ComponentNotes, ComponentScores, CurvePoint } from "@/lib/types";
+import type { ComponentResults, CurvePoint, FactorKey, FactorResult } from "@/lib/types";
+
+/**
+ * What we actually know about this piece of content. Every claim the scorer
+ * makes must trace back to one of these fields — no claim without a
+ * measurement. See governing rule in the security-hardening audit.
+ */
+export type Evidence = {
+  /** A video file was uploaded. */
+  hasMedia: boolean;
+  /** A resolvable platform URL was supplied. */
+  hasSourceUrl: boolean;
+  /** The creator has posts with real performance data. */
+  hasCreatorHistory: boolean;
+  /** How many of the creator's posts have real performance data. */
+  historyPostCount: number;
+  /** Average actual views across the creator's tracked posts, if any. */
+  avgHistoricalViews?: number | null;
+};
 
 export type ScoreInput = {
   title: string;
@@ -6,16 +24,20 @@ export type ScoreInput = {
   platform?: string | null;
   sourceUrl?: string | null;
   appliedFixTitles?: string[];
+  evidence: Evidence;
 };
 
 export type ScoreOutput = {
   overallScore: number;
-  componentScores: ComponentScores;
-  componentNotes: ComponentNotes;
+  componentResults: ComponentResults;
+  /** How many of the five factors actually got scored, out of factorsTotal. */
+  factorsScored: number;
+  factorsTotal: number;
   verdict: string;
-  predictedViewsLow: number;
-  predictedViewsHigh: number;
-  confidencePct: number;
+  // These are only ever non-null when there is real history to derive them from.
+  predictedViewsLow: number | null;
+  predictedViewsHigh: number | null;
+  confidencePct: number | null;
   sampleSize: number;
   fixes: Array<{
     title: string;
@@ -25,54 +47,158 @@ export type ScoreOutput = {
     railSeverity: string;
     applied: boolean;
   }>;
+  // null when there is no media to base a watch-retention estimate on at all —
+  // a curve for a video that was never uploaded is fabrication, not analysis.
   retentionCurve: {
     curvePoints: CurvePoint[];
     riskMomentSec: number | null;
     riskNote: string | null;
-  };
+  } | null;
 };
 
-function hash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-}
+const FACTOR_KEYS: FactorKey[] = ["opening", "visuals", "pacing", "words", "timing"];
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+// ---------------------------------------------------------------------------
+// Text-based factors. These are the only two factors we can ever score from a
+// bare title/caption — real textual features, not a hash of the string.
+// ---------------------------------------------------------------------------
+
+function scoreOpening(title: string): FactorResult {
+  const trimmed = title.trim();
+  const isQuestion =
+    /\?\s*$/.test(trimmed) || /^(how|why|what|when|should|can|is|are|do|does|the secret)\b/i.test(trimmed);
+  const hasNumber = /\d/.test(trimmed);
+  const concise = trimmed.length > 0 && trimmed.length <= 60;
+  const veryLong = trimmed.length > 90;
+
+  let value = 10;
+  if (isQuestion) value += 4;
+  if (hasNumber) value += 3;
+  if (concise) value += 3;
+  if (veryLong) value -= 4;
+  value = clamp(value, 0, 20);
+
+  const reasons: string[] = [];
+  if (isQuestion) reasons.push("poses a question or a direct promise up front");
+  if (hasNumber) reasons.push("leads with a specific number");
+  if (concise) reasons.push("is short enough to land fast");
+  if (veryLong) reasons.push("runs long, which risks burying the payoff");
+
+  const note =
+    reasons.length > 0
+      ? `Title ${reasons.join(", ")}.`
+      : "Title is plain text — no question, number, or hook detected.";
+
+  return { status: "scored", value, note };
+}
+
+function scoreWords(title: string): FactorResult {
+  const trimmed = title.trim();
+  const len = trimmed.length;
+  const hasCta = /\b(save|comment|follow|tip|watch|share|try|learn)\b/i.test(trimmed);
+  const wellSized = len >= 15 && len <= 70;
+  const tooShort = len > 0 && len < 8;
+  const tooLong = len > 120;
+
+  let value = 10;
+  if (wellSized) value += 4;
+  if (hasCta) value += 3;
+  if (tooShort) value -= 3;
+  if (tooLong) value -= 3;
+  value = clamp(value, 0, 20);
+
+  const reasons: string[] = [];
+  if (wellSized) reasons.push("a solid caption length");
+  if (hasCta) reasons.push("a clear action word");
+  if (tooShort) reasons.push("too short to carry a tip");
+  if (tooLong) reasons.push("long enough to bury the point");
+
+  const note =
+    reasons.length > 0
+      ? `Caption has ${reasons.join(" and ")}.`
+      : `Caption is ${len} character${len === 1 ? "" : "s"} — no strong signal either way.`;
+
+  return { status: "scored", value, note };
+}
+
+// ---------------------------------------------------------------------------
+// Media-gated factors. We do not run frame extraction or a vision model
+// (that is a separate, multi-week project) — so even once media exists, we
+// only ever score a duration/format-based proxy, and we say so explicitly.
+// ---------------------------------------------------------------------------
+
+function scoreVisuals(durationSec: number, hasMedia: boolean): FactorResult {
+  if (!hasMedia) {
+    return { status: "unavailable", reason: "Upload the video to score visuals" };
+  }
+  const idealShort = durationSec >= 15 && durationSec <= 60;
+  const value = clamp(idealShort ? 15 : 12, 0, 20);
+  const note = idealShort
+    ? `Video received (${durationSec}s). Length fits the range that reads well at feed size.`
+    : `Video received (${durationSec}s). Shot-by-shot visual analysis isn't available yet — this reflects length only.`;
+  return { status: "scored", value, note };
+}
+
+function scorePacing(durationSec: number, hasMedia: boolean): FactorResult {
+  if (!hasMedia) {
+    return { status: "unavailable", reason: "Upload the video to score pacing" };
+  }
+  const idealLength = durationSec >= 21 && durationSec <= 59;
+  const long = durationSec > 120;
+  let value = 12;
+  if (idealLength) value += 4;
+  if (long) value -= 3;
+  value = clamp(value, 0, 20);
+  const note = idealLength
+    ? `${durationSec}s runs within the range that tends to hold attention.`
+    : long
+      ? `${durationSec}s is long for short-form — more room for a mid-video lull.`
+      : `${durationSec}s — no strong pacing signal from length alone.`;
+  return { status: "scored", value, note };
+}
+
+// ---------------------------------------------------------------------------
+// History-gated factor.
+// ---------------------------------------------------------------------------
+
+function scoreTiming(evidence: Evidence): FactorResult {
+  if (!evidence.hasCreatorHistory) {
+    return { status: "unavailable", reason: "Connect a platform to score posting time" };
+  }
+  const count = evidence.historyPostCount;
+  const value = clamp(10 + Math.min(count, 10), 0, 20);
+  return {
+    status: "scored",
+    value,
+    note: `Based on ${count} tracked post${count === 1 ? "" : "s"} from your connected platform.`,
+  };
+}
+
+function bump(result: FactorResult, delta: number): FactorResult {
+  if (result.status !== "scored") return result;
+  return { ...result, value: clamp(result.value + delta, 0, 20) };
+}
+
 export function scoreContent(input: ScoreInput): ScoreOutput {
-  const h = hash(`${input.title}|${input.durationSec}|${input.platform ?? ""}`);
-  const questionBonus = /\?|how|why|what|wrong|secret|honestly/i.test(input.title) ? 3 : 0;
-  const durationIdeal =
-    input.durationSec >= 35 && input.durationSec <= 60
-      ? 2
-      : input.durationSec > 120
-        ? -2
-        : 0;
-
-  const opening = clamp(14 + (h % 6) + questionBonus, 8, 20);
-  const visuals = clamp(13 + ((h >> 3) % 6), 8, 20);
-  const pacing = clamp(12 + ((h >> 6) % 6) + durationIdeal, 7, 20);
-  const words = clamp(13 + ((h >> 9) % 6) + (input.title.length > 12 ? 1 : 0), 8, 20);
-  const timing = clamp(14 + ((h >> 12) % 5), 9, 20);
-
+  const { evidence } = input;
   const applied = new Set(input.appliedFixTitles ?? []);
-  let openingAdj = opening;
-  let pacingAdj = pacing;
-  let wordsAdj = words;
-  if (applied.has("Rewrite the first line") || applied.has("Lead with a question")) {
-    openingAdj = clamp(openingAdj + 3, 0, 20);
-  }
-  if (applied.has("Trim the pause at 0:41") || applied.has("Cut the mid-video stall")) {
-    pacingAdj = clamp(pacingAdj + 2, 0, 20);
-  }
-  if (applied.has("Tighten the caption")) {
-    wordsAdj = clamp(wordsAdj + 1, 0, 20);
-  }
 
-  const componentScores: ComponentScores = {
+  const opening0 = scoreOpening(input.title);
+  const words0 = scoreWords(input.title);
+  const visuals = scoreVisuals(input.durationSec, evidence.hasMedia);
+  const pacing0 = scorePacing(input.durationSec, evidence.hasMedia);
+  const timing = scoreTiming(evidence);
+
+  // Applied-fix bonuses only ever touch a factor that was actually scored.
+  const openingAdj = applied.has("Rewrite the opening line") ? bump(opening0, 3) : opening0;
+  const pacingAdj = applied.has("Address the pacing dip") ? bump(pacing0, 2) : pacing0;
+  const wordsAdj = applied.has("Tighten the caption") ? bump(words0, 1) : words0;
+
+  const componentResults: ComponentResults = {
     opening: openingAdj,
     visuals,
     pacing: pacingAdj,
@@ -80,97 +206,136 @@ export function scoreContent(input: ScoreInput): ScoreOutput {
     timing,
   };
 
-  const sum = Object.values(componentScores).reduce((a, b) => a + b, 0);
-  const overallScore = clamp(Math.round((sum / 100) * 100), 1, 100);
+  const scoredKeys = FACTOR_KEYS.filter((k) => componentResults[k].status === "scored");
+  const factorsScored = scoredKeys.length;
+  const factorsTotal = FACTOR_KEYS.length;
 
-  const componentNotes: ComponentNotes = {
-    opening:
-      openingAdj >= 17
-        ? "Strong. The payoff lands in the first second."
-        : "Payoff arrives late — lead with the result or a sharp question.",
-    visuals:
-      visuals >= 16
-        ? "Bright, readable, a clear face. Works at feed size."
-        : "First frame is busy. Simplify the thumbnail and opening shot.",
-    pacing:
-      pacingAdj >= 16
-        ? "Cuts stay tight through the middle."
-        : "One slow moment mid-video where the shot holds still.",
-    words:
-      wordsAdj >= 16
-        ? "Caption and tags are solid. Good niche tag mix."
-        : "Caption buries the tip. Lead with the takeaway.",
-    timing:
-      timing >= 16
-        ? "Tonight at 6pm is your peak. Scheduled slot is good."
-        : "Off-peak window. Shift toward your strongest slot.",
-  };
+  const overallScore =
+    factorsScored > 0
+      ? clamp(
+          Math.round(
+            (scoredKeys.reduce((sum, k) => {
+              const r = componentResults[k];
+              return sum + (r.status === "scored" ? r.value : 0);
+            }, 0) /
+              (factorsScored * 20)) *
+              100,
+          ),
+          1,
+          100,
+        )
+      : 0;
 
   const verdict =
-    overallScore >= 85
-      ? "Ready to post. One small fix would make it great."
-      : overallScore >= 70
-        ? "Close. A couple of fixes will lift this into posting range."
-        : "Needs work before posting — start with the opening.";
+    factorsScored === 0
+      ? "Not enough to score yet — upload a video, paste a link, or connect a platform."
+      : overallScore >= 85
+        ? "Ready to post. One small fix would make it great."
+        : overallScore >= 70
+          ? "Close. A couple of fixes will lift this into posting range."
+          : "Needs work before posting — start with the opening.";
 
-  const baseViews = 40000 + (h % 180000) + overallScore * 1200;
-  const predictedViewsLow = Math.round(baseViews * 0.75);
-  const predictedViewsHigh = Math.round(baseViews * 1.15);
-  const confidencePct = clamp(62 + Math.floor(overallScore / 5), 55, 88);
-  const sampleSize = 28 + (h % 20);
+  // Confidence is derived from how much real history exists, not asserted.
+  const confidencePct = evidence.hasCreatorHistory
+    ? clamp(30 + evidence.historyPostCount * 4, 30, 85)
+    : null;
+  const sampleSize = evidence.historyPostCount;
 
-  const riskMomentSec = clamp(Math.floor(input.durationSec * 0.65), 8, input.durationSec - 2);
-  const fixes = [
-    {
-      title: pacingAdj < 17 ? "Trim the pause at 0:41" : "Cut the mid-video stall",
-      description: `The shot holds still around ${Math.floor(riskMomentSec / 60)}:${String(riskMomentSec % 60).padStart(2, "0")}. People start leaving here.`,
-      suggestionText: "Cut two seconds earlier, or add a text overlay over the pause.",
-      pointValue: 3,
-      railSeverity: "med",
-      applied: applied.has("Trim the pause at 0:41") || applied.has("Cut the mid-video stall"),
-    },
-    {
-      title: openingAdj < 18 ? "Rewrite the first line" : "Lead with a question",
-      description: "The first line does not promise the payoff fast enough.",
+  const canPredictViews =
+    evidence.hasCreatorHistory &&
+    evidence.historyPostCount >= 10 &&
+    typeof evidence.avgHistoricalViews === "number" &&
+    evidence.avgHistoricalViews > 0;
+
+  const predictedViewsLow = canPredictViews
+    ? Math.round(evidence.avgHistoricalViews! * 0.7)
+    : null;
+  const predictedViewsHigh = canPredictViews
+    ? Math.round(evidence.avgHistoricalViews! * 1.3)
+    : null;
+
+  const fixes: ScoreOutput["fixes"] = [];
+
+  if (openingAdj.status === "scored" && openingAdj.value < 18) {
+    fixes.push({
+      title: "Rewrite the opening line",
+      description: openingAdj.note,
       suggestionText: `"${input.title.replace(/\.$/, "")} — here's the part nobody tells you."`,
       pointValue: 9,
       railSeverity: "high",
-      applied: applied.has("Rewrite the first line") || applied.has("Lead with a question"),
-    },
-    {
+      applied: applied.has("Rewrite the opening line"),
+    });
+  }
+
+  if (wordsAdj.status === "scored" && wordsAdj.value < 16) {
+    fixes.push({
       title: "Tighten the caption",
-      description: "The caption can lead with the tip instead of context.",
+      description: wordsAdj.note,
       suggestionText: "Three short lines. Tip first. Proof second. CTA last.",
       pointValue: 4,
       railSeverity: "med",
       applied: applied.has("Tighten the caption"),
-    },
-  ].sort((a, b) => Number(a.applied) - Number(b.applied) || b.pointValue - a.pointValue);
+    });
+  }
 
-  const steps = 6;
-  const curvePoints: CurvePoint[] = Array.from({ length: steps }, (_, i) => {
-    const t = Math.round((i / (steps - 1)) * input.durationSec);
-    const drop = i >= 4 && pacingAdj < 17 ? 18 : 8;
-    return { tSeconds: t, pctRemaining: clamp(100 - i * drop - (i > 3 ? 6 : 0), 35, 100) };
-  });
+  // A timecode or shot reference is only ever honest once real media exists —
+  // and even then it's a length-based estimate, not an observation of frames.
+  let retentionCurve: ScoreOutput["retentionCurve"] = null;
+  if (evidence.hasMedia && pacingAdj.status === "scored") {
+    const steps = 6;
+    const riskMomentSec = clamp(
+      Math.floor(input.durationSec * 0.65),
+      8,
+      Math.max(input.durationSec - 2, 8),
+    );
+    const curvePoints: CurvePoint[] = Array.from({ length: steps }, (_, i) => {
+      const t = Math.round((i / (steps - 1)) * input.durationSec);
+      const drop = i >= 4 && pacingAdj.value < 17 ? 18 : 8;
+      return { tSeconds: t, pctRemaining: clamp(100 - i * drop - (i > 3 ? 6 : 0), 35, 100) };
+    });
+    const timeLabel = `${Math.floor(riskMomentSec / 60)}:${String(riskMomentSec % 60).padStart(2, "0")}`;
+
+    retentionCurve = {
+      curvePoints,
+      riskMomentSec,
+      riskNote: `Videos around this length often see a dip near ${timeLabel} — this is a length-based estimate, not a measurement of your footage.`,
+    };
+
+    if (pacingAdj.value < 17) {
+      fixes.push({
+        title: "Address the pacing dip",
+        description: `Videos this length often lose viewers near ${timeLabel}.`,
+        suggestionText: "Cut a beat earlier there, or add a text overlay to hold attention.",
+        pointValue: 3,
+        railSeverity: "med",
+        applied: applied.has("Address the pacing dip"),
+      });
+    }
+  }
+
+  fixes.sort((a, b) => Number(a.applied) - Number(b.applied) || b.pointValue - a.pointValue);
 
   return {
     overallScore,
-    componentScores,
-    componentNotes,
+    componentResults,
+    factorsScored,
+    factorsTotal,
     verdict,
     predictedViewsLow,
     predictedViewsHigh,
     confidencePct,
     sampleSize,
     fixes,
-    retentionCurve: {
-      curvePoints,
-      riskMomentSec,
-      riskNote: `Risk moment at ${Math.floor(riskMomentSec / 60)}:${String(riskMomentSec % 60).padStart(2, "0")}. The still shot loses people. The fix above deals with this.`,
-    },
+    retentionCurve,
   };
 }
+
+const NO_EVIDENCE: Evidence = {
+  hasMedia: false,
+  hasSourceUrl: false,
+  hasCreatorHistory: false,
+  historyPostCount: 0,
+};
 
 export function generateHooks(idea: string) {
   const seeds = [
@@ -186,7 +351,7 @@ export function generateHooks(idea: string) {
     `The lazy way to nail ${idea}.`,
   ];
   return seeds.map((text, i) => {
-    const score = scoreContent({ title: text, durationSec: 42, platform: "tiktok" });
+    const score = scoreContent({ title: text, durationSec: 42, platform: "tiktok", evidence: NO_EVIDENCE });
     return { id: `hook-${i}`, text, score: clamp(score.overallScore - (i % 3), 55, 96) };
   });
 }

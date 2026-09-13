@@ -76,8 +76,8 @@ const NAV: NavItem[] = [
           {
             href: `${SITE}/for-creators#stories`,
             ico: "St",
-            title: "Success stories",
-            desc: "Creators booked through Viralyz",
+            title: "How creators use it",
+            desc: "Score, fix, and build a verified record",
           },
           { href: `${SITE}/affiliates`, ico: "Cm", title: "Community", desc: "Swap notes with other creators" },
         ],
@@ -117,8 +117,8 @@ const NAV: NavItem[] = [
           {
             href: `${SITE}/for-brands#cases`,
             ico: "Cs",
-            title: "Case studies",
-            desc: "Real campaign results",
+            title: "How campaigns work",
+            desc: "Brief, book, and pay in one place",
           },
           { href: `${SITE}/pricing`, ico: "Ag", title: "Agencies", desc: "Manage multiple client rosters" },
           {

@@ -37,6 +37,21 @@ function relativeSync(iso: string) {
   return `${hours}h ago`;
 }
 
+function todayLabel() {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+}
+
+function timeOfDayGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 type Props = {
   data: DashboardResponse;
 };
@@ -105,10 +120,10 @@ export function DashboardView({ data }: Props) {
     <div className="vfade">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-[22px] pb-[26px] sticky top-0 bg-[var(--paper)] z-10">
         <div>
-          <h1 className="font-display text-2xl font-bold m-0">Good morning, {firstName}</h1>
-          <div className="text-[13px] text-[var(--ink-3)] mt-0.5">
-            Tuesday 14 July · your audience peaks at 6pm today
-          </div>
+          <h1 className="font-display text-2xl font-bold m-0">
+            {timeOfDayGreeting()}, {firstName}
+          </h1>
+          <div className="text-[13px] text-[var(--ink-3)] mt-0.5">{todayLabel()}</div>
         </div>
         <div className="flex gap-2.5 items-center flex-wrap relative">
           <span className="font-mono text-[11.5px] bg-[var(--card)] border border-[var(--line)] rounded-full px-3.5 py-[7px] text-[var(--ink-2)]">
@@ -156,18 +171,25 @@ export function DashboardView({ data }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
         <StatCard
           label="Your score this month"
-          value={data.monthlyScore}
-          delta={data.monthlyScoreDelta}
-          footnote={`Average across ${data.monthlyPostCount} posts`}
+          value={data.hasMonthlyScoreData ? data.monthlyScore! : "—"}
+          delta={data.hasMonthlyScoreData ? (data.monthlyScoreDelta ?? undefined) : undefined}
+          footnote={
+            data.hasMonthlyScoreData
+              ? `Average across ${data.monthlyPostCount} posts`
+              : "Not enough data yet — we'll show this once you have posts with real views"
+          }
           sparkline={data.monthlySparkline}
         />
         <StatCard
           label="Predictions right"
-          value={`${data.predictionAccuracyPct}%`}
-          delta={data.accuracyDelta}
+          value={data.hasAccuracyData ? `${data.predictionAccuracyPct}%` : "—"}
+          delta={data.hasAccuracyData ? (data.accuracyDelta ?? undefined) : undefined}
           footnote={
             <>
-              Based on your last {data.accuracySampleSize} posts ·{" "}
+              {data.hasAccuracyData
+                ? `Based on your last ${data.accuracySampleSize} posts`
+                : "Not enough data yet — we'll show this once you have posts with real views"}{" "}
+              ·{" "}
               <button
                 type="button"
                 onClick={() => setShowHow(true)}
@@ -299,6 +321,11 @@ export function DashboardView({ data }: Props) {
             }
           >
             <div className="px-5 pb-3.5 pt-2">
+              {data.insights.length === 0 && (
+                <div className="py-[11px] text-[13px] text-[var(--ink-2)]">
+                  Not enough data yet — we&apos;ll show this once you have posts with real views.
+                </div>
+              )}
               {data.insights.map((w) => {
                 const { bold, rest } = splitInsight(w.statement);
                 return (
