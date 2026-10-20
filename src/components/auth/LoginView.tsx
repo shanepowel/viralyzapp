@@ -27,9 +27,14 @@ type Mode = "signin" | "signup" | "reset" | "set-password";
 type Props = {
   clerkEnabled?: boolean;
   inviteOnly?: boolean;
+  demoEnabled?: boolean;
 };
 
-export function LoginView({ clerkEnabled = false, inviteOnly = true }: Props) {
+export function LoginView({
+  clerkEnabled = false,
+  inviteOnly = true,
+  demoEnabled = false,
+}: Props) {
   const router = useRouter();
   const search = useSearchParams();
   const next = search.get("next") || "/score";
@@ -56,7 +61,7 @@ export function LoginView({ clerkEnabled = false, inviteOnly = true }: Props) {
     });
   }
 
-  async function login(payload: { email: string; password: string; demo?: boolean }) {
+  async function login(payload: { email?: string; password?: string; demo?: boolean }) {
     setError(null);
     setNotice(null);
     const res = await fetch("/api/login", {
@@ -399,7 +404,7 @@ export function LoginView({ clerkEnabled = false, inviteOnly = true }: Props) {
             ) : null}
           </div>
 
-          {mode === "signin" || mode === "signup" ? (
+          {demoEnabled && (mode === "signin" || mode === "signup") ? (
             <>
               <div className="my-6 flex items-center gap-3 text-[11px] text-[var(--ink-3)] font-mono uppercase tracking-[0.08em]">
                 <span className="flex-1 h-px bg-[var(--line)]" />
@@ -407,15 +412,14 @@ export function LoginView({ clerkEnabled = false, inviteOnly = true }: Props) {
                 <span className="flex-1 h-px bg-[var(--line)]" />
               </div>
 
+              {/* No credentials in the client bundle — the server resolves the demo account. */}
               <Button
                 variant="outline"
                 className="w-full py-3"
                 disabled={pending}
-                onClick={() =>
-                  void login({ email: "maya@viralyz.com", password: "demo1234", demo: true })
-                }
+                onClick={() => void login({ demo: true })}
               >
-                Continue as Maya R. · demo
+                Explore with sample data
               </Button>
             </>
           ) : null}

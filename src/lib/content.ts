@@ -1,11 +1,70 @@
 import { prisma } from "@/lib/prisma";
 import { platformLabel } from "@/lib/score-bands";
 import type {
-  ComponentNotes,
-  ComponentScores,
+  ComponentResults,
   ContentLatestResponse,
   CurvePoint,
+  FactorKey,
+  FactorResult,
 } from "@/lib/types";
+
+const FACTOR_KEYS: FactorKey[] = ["opening", "visuals", "pacing", "words", "timing"];
+
+// See src/lib/jobs.ts: the Score model's componentNotes Json column is
+// repurposed to carry factor-availability metadata now that per-factor notes
+// live inside componentResults (stored in the componentScores column).
+type ScoreMeta = {
+  factorsScored: number;
+  factorsTotal: number;
+  confidenceAvailable: boolean;
+  viewsAvailable: boolean;
+};
+
+/**
+ * Older scored versions (e.g. seed data) store componentScores/componentNotes
+ * as flat {factor: number} / {factor: note} maps rather than the newer
+ * ComponentResults shape. Read either shape so pre-existing rows keep
+ * rendering instead of showing "undefined".
+ */
+function readComponentResults(scoresJson: unknown, notesJson: unknown): ComponentResults {
+  const scores = (scoresJson ?? {}) as Record<string, unknown>;
+  const legacyNotes = (notesJson ?? {}) as Record<string, unknown>;
+  const out = {} as ComponentResults;
+  for (const key of FACTOR_KEYS) {
+    const raw = scores[key];
+    if (raw && typeof raw === "object" && "status" in (raw as Record<string, unknown>)) {
+      out[key] = raw as FactorResult;
+    } else if (typeof raw === "number") {
+      const note = typeof legacyNotes[key] === "string" ? (legacyNotes[key] as string) : "";
+      out[key] = { status: "scored", value: raw, note };
+    } else {
+      out[key] = { status: "unavailable", reason: "Not scored" };
+    }
+  }
+  return out;
+}
+
+function readScoreMeta(notesJson: unknown, componentResults: ComponentResults): ScoreMeta {
+  const notes = notesJson as Partial<ScoreMeta> | null;
+  if (notes && typeof notes.factorsScored === "number") {
+    return {
+      factorsScored: notes.factorsScored,
+      factorsTotal: notes.factorsTotal ?? FACTOR_KEYS.length,
+      confidenceAvailable: notes.confidenceAvailable ?? false,
+      viewsAvailable: notes.viewsAvailable ?? false,
+    };
+  }
+  // Legacy row: componentNotes is a flat notes map, not meta. These rows
+  // predate the evidence gating and represent already-analyzed, posted
+  // content, so the seeded predictedViews/confidence are treated as real.
+  const factorsScored = FACTOR_KEYS.filter((k) => componentResults[k].status === "scored").length;
+  return {
+    factorsScored,
+    factorsTotal: FACTOR_KEYS.length,
+    confidenceAvailable: true,
+    viewsAvailable: true,
+  };
+}
 
 export async function getContentLatest(
   contentId: string,
@@ -35,6 +94,12 @@ export async function getContentLatest(
   const prior = content.versions[1];
   const priorScore = prior?.score;
 
+  const componentResults = readComponentResults(
+    latest.score.componentScores,
+    latest.score.componentNotes,
+  );
+  const scoreMeta = readScoreMeta(latest.score.componentNotes, componentResults);
+
   return {
     content: {
       id: content.id,
@@ -58,11 +123,12 @@ export async function getContentLatest(
     score: {
       overallScore: latest.score.overallScore,
       verdict: latest.score.verdict,
-      componentScores: latest.score.componentScores as ComponentScores,
-      componentNotes: latest.score.componentNotes as ComponentNotes,
-      predictedViewsLow: latest.score.predictedViewsLow,
-      predictedViewsHigh: latest.score.predictedViewsHigh,
-      confidencePct: latest.score.confidencePct,
+      componentResults,
+      factorsScored: scoreMeta.factorsScored,
+      factorsTotal: scoreMeta.factorsTotal,
+      predictedViewsLow: scoreMeta.viewsAvailable ? latest.score.predictedViewsLow : null,
+      predictedViewsHigh: scoreMeta.viewsAvailable ? latest.score.predictedViewsHigh : null,
+      confidencePct: scoreMeta.confidenceAvailable ? latest.score.confidencePct : null,
       sampleSize: latest.score.sampleSize,
       computedAt: latest.score.computedAt.toISOString(),
     },

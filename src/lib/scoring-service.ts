@@ -33,7 +33,7 @@ export async function runScorer(input: ScoreInput): Promise<ScoreOutput> {
   }
 
   const json = (await res.json()) as ScoreOutput;
-  if (typeof json.overallScore !== "number" || !json.componentScores) {
+  if (typeof json.overallScore !== "number" || !json.componentResults) {
     throw new Error("Scoring service returned an invalid payload");
   }
   return json;

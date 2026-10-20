@@ -1,13 +1,35 @@
 import "dotenv/config";
+import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { allowFakeData } from "../src/lib/fake-data";
 
 const url = process.env.DATABASE_URL?.trim();
 if (!url || url.startsWith("file:")) {
   throw new Error("Set DATABASE_URL to a Postgres connection string before seeding.");
 }
+
+/**
+ * This seed DELETES every table before inserting. Running it against production
+ * would wipe real data and previously also planted a known admin password.
+ */
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+  throw new Error(
+    "Refusing to seed in production (this seed deletes all rows). " +
+      "Set ALLOW_PRODUCTION_SEED=true only if you are certain.",
+  );
+}
+
+/**
+ * Admin password comes from the environment. If unset, a random one is generated and
+ * printed once. Never hardcode a credential here — the previous constant shipped in
+ * the repo and granted admin on production.
+ */
+const adminPassword = process.env.SEED_ADMIN_PASSWORD?.trim() || randomBytes(18).toString("base64url");
+const adminPasswordWasGenerated = !process.env.SEED_ADMIN_PASSWORD?.trim();
+const adminEmail = (process.env.SEED_ADMIN_EMAIL || "admin@viralyz.com").trim().toLowerCase();
 
 const pool = new Pool({
   connectionString: url,
@@ -38,18 +60,39 @@ async function main() {
   await prisma.platform.deleteMany();
   await prisma.user.deleteMany();
 
-  const mayaHash = await bcrypt.hash("demo1234", 10);
-  const testerHash = await bcrypt.hash("tester1234", 10);
+  const mayaHash = await bcrypt.hash(adminPassword, 10);
+  const testerHash = await bcrypt.hash(randomBytes(18).toString("base64url"), 10);
 
+  /**
+   * DEMO CONTENT — LOCAL DEVELOPMENT ONLY.
+   *
+   * Everything below (the illustrative creator account's posts, scores, predictions,
+   * fixes, retention curves, insights, media kit numbers, trends, competitor posts, and
+   * engagement comments) is fabricated sample data for exercising the UI locally. None of
+   * it is a real measurement and it must never be presented to end users as if it were.
+   * src/lib/fake-data.ts (allowFakeData) is the shared guard for illustrative data
+   * elsewhere in the app and is hard-off in production. As a second, independent layer
+   * of defense here (on top of the production check above), refuse to create this
+   * content at all unless fake data is explicitly allowed.
+   */
+  if (!allowFakeData() && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Refusing to seed illustrative demo content in production. Set ALLOW_FAKE_DATA=true " +
+        "only if you are certain (see src/lib/fake-data.ts).",
+    );
+  }
+
+  // Illustrative creator account. Doubles as the DEMO_LOGIN target, so it must not be
+  // an admin — one-click demo sign-in resolves this account.
   const user = await prisma.user.create({
     data: {
-      email: "maya@viralyz.com",
+      email: adminEmail,
       passwordHash: mayaHash,
       name: "Maya R.",
       handle: "mayacooks",
       plan: "unlimited",
       creditsRemaining: 999,
-      role: "admin",
+      role: "user",
       onboardingDone: true,
       emailVerifiedAt: new Date(),
       platforms: {
@@ -492,8 +535,15 @@ async function main() {
   }
 
   console.log("Seeded Viralyz beta data");
-  console.log("Maya: maya@viralyz.com / demo1234 (admin)");
-  console.log("Tester: tester@viralyz.com / tester1234");
+  console.log(`Creator account: ${adminEmail} (role: user)`);
+  if (adminPasswordWasGenerated) {
+    console.log(`Generated password (shown once): ${adminPassword}`);
+    console.log("Set SEED_ADMIN_PASSWORD to choose your own.");
+  } else {
+    console.log("Password: from SEED_ADMIN_PASSWORD");
+  }
+  console.log("Tester account password was randomised — use password reset to access it.");
+  console.log("No admin was seeded. Grant admin explicitly via ADMIN_EMAILS or the DB.");
   console.log("Sample invites:", inviteCodes.join(", "));
   console.log("Hero content id:", kitchen.id);
 }
