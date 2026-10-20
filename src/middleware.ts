@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { parseSession } from "@/lib/session-cookie";
 
 const AUTH_COOKIE = "viralyz_session";
 const clerkEnabled = Boolean(
@@ -28,7 +29,20 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
 ]);
 
-function legacyMiddleware(req: NextRequest) {
+function unauthorized(req: NextRequest, pathname: string) {
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const url = req.nextUrl.clone();
+  url.pathname = "/login";
+  url.searchParams.set("next", pathname);
+  const res = NextResponse.redirect(url);
+  // Clear a tampered or expired cookie so the client isn't stuck in a redirect loop.
+  res.cookies.set(AUTH_COOKIE, "", { path: "/", maxAge: 0 });
+  return res;
+}
+
+async function legacyMiddleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (
@@ -54,16 +68,10 @@ function legacyMiddleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = req.cookies.get(AUTH_COOKIE)?.value;
-  if (!session) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
+  // Verify the signature here, not just presence. Route handlers re-verify via
+  // resolveAppUser(); this is the cheap first gate.
+  const session = await parseSession(req.cookies.get(AUTH_COOKIE)?.value);
+  if (!session) return unauthorized(req, pathname);
 
   return NextResponse.next();
 }

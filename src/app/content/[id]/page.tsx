@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
-import { AppShell } from "@/components/shell/AppShell";
+import { AppPage } from "@/components/shell/AppPage";
 import { ScoreResultsView } from "@/components/score/ScoreResultsView";
-import { getSessionUser, requirePageSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import { getContentLatest } from "@/lib/content";
-import { isClerkEnabled } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -21,19 +20,10 @@ export default async function ContentPage({ params }: Props) {
   if (!exists) notFound();
 
   const data = await getContentLatest(id, session.userId);
-  const user = await getSessionUser();
 
   return (
-    <AppShell
-      userName={user?.name ?? data.user.name}
-      momentum={[5, 7, 6, 9, 11, 14]}
-      plan={user?.plan}
-      creditsRemaining={user?.creditsRemaining}
-      isAdmin={user?.role === "admin"}
-      showOnboarding={user ? !user.onboardingDone : false}
-      clerkEnabled={isClerkEnabled()}
-    >
+    <AppPage>
       <ScoreResultsView data={data} />
-    </AppShell>
+    </AppPage>
   );
 }

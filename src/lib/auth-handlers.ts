@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AUTH_COOKIE, hashPassword, sessionCookieValue, verifyPassword } from "@/lib/auth";
-import { isInviteOnly } from "@/lib/env";
+import { demoLoginEmail, isDemoLoginEnabled, isInviteOnly } from "@/lib/env";
 import { consumeInvite } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
 
 const loginSchema = z
   .object({
@@ -29,7 +30,7 @@ const signupSchema = z.object({
     .optional(),
 });
 
-function sessionResponse(user: {
+async function sessionResponse(user: {
   id: string;
   email: string;
   name: string;
@@ -40,64 +41,29 @@ function sessionResponse(user: {
     ok: true,
     user: { id: user.id, email: user.email, name: user.name, handle: user.handle },
   });
-  res.cookies.set(AUTH_COOKIE, sessionCookieValue(session), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 14,
-    secure: process.env.NODE_ENV === "production",
-  });
+  res.cookies.set(AUTH_COOKIE, await sessionCookieValue(session), SESSION_COOKIE_OPTIONS);
   return res;
 }
 
-async function ensureDemoUsers() {
-  const maya = await prisma.user.findUnique({ where: { email: "maya@viralyz.com" } });
-  if (maya) {
-    if (!maya.passwordHash || !(await verifyPassword("demo1234", maya.passwordHash))) {
-      await prisma.user.update({
-        where: { id: maya.id },
-        data: {
-          passwordHash: await hashPassword("demo1234"),
-          plan: "unlimited",
-          role: "admin",
-        },
-      });
-    } else if (maya.role !== "admin") {
-      await prisma.user.update({ where: { id: maya.id }, data: { role: "admin" } });
-    }
-  } else {
-    await prisma.user.create({
-      data: {
-        email: "maya@viralyz.com",
-        name: "Maya",
-        handle: "mayacooks",
-        passwordHash: await hashPassword("demo1234"),
-        plan: "unlimited",
-        creditsRemaining: 999,
-        role: "admin",
-        mediaKit: {
-          create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
-        },
-      },
-    });
-  }
-
-  const tester = await prisma.user.findUnique({ where: { email: "tester@viralyz.com" } });
-  if (!tester) {
-    await prisma.user.create({
-      data: {
-        email: "tester@viralyz.com",
-        name: "Tester",
-        handle: "tester",
-        passwordHash: await hashPassword("tester1234"),
-        plan: "credits",
-        creditsRemaining: 10,
-        mediaKit: {
-          create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
-        },
-      },
-    });
-  }
+/**
+ * Resolve the demo account for one-click sign-in.
+ *
+ * Deliberately narrow:
+ *  - only runs when DEMO_LOGIN is explicitly enabled;
+ *  - never creates, promotes, or resets an account;
+ *  - refuses to issue a session for a privileged account.
+ *
+ * The previous implementation reset this account's password to a constant and forced
+ * role=admin on every login attempt, which made it a permanent public admin credential
+ * and silently reverted any manual demotion. Do not reintroduce that behaviour — seed
+ * the demo user via `prisma/seed.ts` instead.
+ */
+async function resolveDemoUser() {
+  if (!isDemoLoginEnabled()) return null;
+  const user = await prisma.user.findUnique({ where: { email: demoLoginEmail() } });
+  if (!user) return null;
+  if (user.role === "admin") return null;
+  return user;
 }
 
 export async function handleLogin(req: Request) {
@@ -117,14 +83,16 @@ export async function handleLogin(req: Request) {
       return NextResponse.json({ error: "Enter a valid email and password." }, { status: 400 });
     }
 
-    const email = (
-      parsed.data.demo ? "maya@viralyz.com" : (parsed.data.email ?? "")
-    ).toLowerCase();
-    const password = parsed.data.demo ? "demo1234" : (parsed.data.password ?? "");
-
-    if (parsed.data.demo || email === "maya@viralyz.com" || email === "tester@viralyz.com") {
-      await ensureDemoUsers();
+    if (parsed.data.demo) {
+      const demoUser = await resolveDemoUser();
+      if (!demoUser) {
+        return NextResponse.json({ error: "Demo sign-in is unavailable." }, { status: 403 });
+      }
+      return sessionResponse(demoUser);
     }
+
+    const email = (parsed.data.email ?? "").toLowerCase();
+    const password = parsed.data.password ?? "";
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
@@ -213,11 +181,6 @@ export async function handleSignup(req: Request) {
 
 export async function handleLogout() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(AUTH_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
+  res.cookies.set(AUTH_COOKIE, "", { ...SESSION_COOKIE_OPTIONS, maxAge: 0 });
   return res;
 }

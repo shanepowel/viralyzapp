@@ -3,6 +3,7 @@ import type { User } from "@/generated/prisma/client";
 import { isAdminEmail, isClerkEnabled, isInviteOnly } from "@/lib/env";
 import { consumeInvite } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
+import { parseSession } from "@/lib/session-cookie";
 
 const AUTH_COOKIE = "viralyz_session";
 
@@ -36,15 +37,8 @@ export function toAppUser(user: User): AppUser {
 
 async function sessionFromCookie(): Promise<{ userId: string } | null> {
   const jar = await cookies();
-  const raw = jar.get(AUTH_COOKIE)?.value;
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(raw)) as { userId?: string };
-    if (!parsed.userId) return null;
-    return { userId: parsed.userId };
-  } catch {
-    return null;
-  }
+  const payload = await parseSession(jar.get(AUTH_COOKIE)?.value);
+  return payload ? { userId: payload.userId } : null;
 }
 
 /** Link or create app user from Clerk. Returns null when invite-only and no invite. */
@@ -113,7 +107,11 @@ export type ClerkIdentity = {
   name: string;
 };
 
-export async function getClerkIdentity(): Promise<ClerkIdentity | null> {
+/** Distinguishes "not signed in via Clerk" from "Clerk lookup failed". */
+const CLERK_ERROR = Symbol("clerk-error");
+type ClerkLookup = ClerkIdentity | null | typeof CLERK_ERROR;
+
+async function lookupClerkIdentity(): Promise<ClerkLookup> {
   if (!isClerkEnabled()) return null;
   try {
     const { auth, currentUser } = await import("@clerk/nextjs/server");
@@ -130,13 +128,30 @@ export async function getClerkIdentity(): Promise<ClerkIdentity | null> {
       "Creator";
     return { clerkUserId: userId, email, name };
   } catch {
-    return null;
+    // Swallowing this used to fall through to the cookie session, silently switching
+    // the request to a different user. Fail closed instead.
+    return CLERK_ERROR;
   }
 }
 
-/** Resolve the signed-in app user (Clerk and/or cookie session). */
+export async function getClerkIdentity(): Promise<ClerkIdentity | null> {
+  const result = await lookupClerkIdentity();
+  return result === CLERK_ERROR ? null : result;
+}
+
+/**
+ * Resolve the signed-in app user.
+ *
+ * Deterministic precedence: a live Clerk identity always wins; the legacy cookie is
+ * only consulted when Clerk is disabled or reports no session. If the Clerk lookup
+ * errors we return null (fail closed) rather than falling back to the cookie, which
+ * could otherwise resolve the request to a different user mid-session.
+ */
 export async function resolveAppUser(): Promise<AppUser | null> {
-  const clerk = await getClerkIdentity();
+  const lookup = await lookupClerkIdentity();
+  if (lookup === CLERK_ERROR) return null;
+
+  const clerk = lookup;
   if (clerk) {
     const byClerk = await prisma.user.findUnique({ where: { clerkUserId: clerk.clerkUserId } });
     if (byClerk) return toAppUser(byClerk);

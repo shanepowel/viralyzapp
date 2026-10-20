@@ -1,23 +1,18 @@
-export type ComponentScores = {
-  opening: number;
-  visuals: number;
-  pacing: number;
-  words: number;
-  timing: number;
-};
-
-export type ComponentNotes = {
-  opening: string;
-  visuals: string;
-  pacing: string;
-  words: string;
-  timing: string;
-};
-
 export type CurvePoint = {
   tSeconds: number;
   pctRemaining: number;
 };
+
+// The five scoring factors. Each one is either "scored" (with a real basis
+// for the value) or "unavailable" (with a reason we didn't score it) — a
+// factor is never both unscored and numeric at once. See src/lib/scorer.ts.
+export type FactorKey = "opening" | "visuals" | "pacing" | "words" | "timing";
+
+export type FactorResult =
+  | { status: "scored"; value: number; note: string }
+  | { status: "unavailable"; reason: string };
+
+export type ComponentResults = Record<FactorKey, FactorResult>;
 
 export type DashboardResponse = {
   user: {
@@ -27,13 +22,15 @@ export type DashboardResponse = {
     creditsRemaining?: number;
     momentum: number[];
   };
-  monthlyScore: number;
-  monthlyScoreDelta: number;
+  monthlyScore: number | null;
+  monthlyScoreDelta: number | null;
   monthlyPostCount: number;
   monthlySparkline: number[];
-  predictionAccuracyPct: number;
-  accuracyDelta: number;
+  hasMonthlyScoreData: boolean;
+  predictionAccuracyPct: number | null;
+  accuracyDelta: number | null;
   accuracySampleSize: number;
+  hasAccuracyData: boolean;
   nextBestAction: {
     contentId: string;
     title: string;
@@ -88,11 +85,16 @@ export type ContentLatestResponse = {
   score: {
     overallScore: number;
     verdict: string;
-    componentScores: ComponentScores;
-    componentNotes: ComponentNotes;
-    predictedViewsLow: number;
-    predictedViewsHigh: number;
-    confidencePct: number;
+    // Rich per-factor results — replaces the old flat componentScores/componentNotes
+    // maps so a factor can be represented as genuinely "unavailable" instead of a
+    // fabricated number. See ComponentResults in this file / src/lib/scorer.ts.
+    componentResults: ComponentResults;
+    factorsScored: number;
+    factorsTotal: number;
+    // null when there isn't enough real evidence to back a claim (see scorer.ts).
+    predictedViewsLow: number | null;
+    predictedViewsHigh: number | null;
+    confidencePct: number | null;
     sampleSize: number;
     computedAt: string;
   };

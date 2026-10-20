@@ -80,7 +80,7 @@ const navWithGroups = withGroupHeaders(nav);
 export function AppShell({
   children,
   userName = "Creator",
-  momentum = [5, 7, 6, 9, 11, 14],
+  momentum = [],
   plan,
   creditsRemaining,
   libraryCount,
@@ -196,17 +196,21 @@ export function AppShell({
             </div>
             <div>
               <div className="font-semibold text-[13px] leading-tight">{userName}</div>
-              <div className="flex items-end gap-0.5 h-3.5 mt-[3px]">
-                {momentum.map((h, i) => (
-                  <i
-                    key={i}
-                    className="w-1 rounded-sm block"
-                    style={{
-                      height: `${h}px`,
-                      background: i >= momentum.length - 3 ? "var(--s90)" : "var(--line-strong)",
-                    }}
-                  />
-                ))}
+              <div className="flex items-end gap-0.5 h-3.5 mt-[3px]" title="Recent score trend">
+                {momentum.length === 0 ? (
+                  <i className="w-5 h-[3px] rounded-sm block" style={{ background: "var(--line-strong)" }} />
+                ) : (
+                  momentum.map((score, i) => (
+                    <i
+                      key={i}
+                      className="w-1 rounded-sm block"
+                      style={{
+                        height: `${Math.max(3, Math.round((score / 100) * 14))}px`,
+                        background: i >= momentum.length - 3 ? "var(--s90)" : "var(--line-strong)",
+                      }}
+                    />
+                  ))
+                )}
               </div>
             </div>
             {clerkEnabled ? (
