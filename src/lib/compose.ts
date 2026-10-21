@@ -111,7 +111,11 @@ async function sampleRegionColor(
   const height = Math.max(1, Math.min(canvasHeight - top, Math.round(region.h)));
 
   const stats = await image.clone().extract({ left, top, width, height }).stats();
-  const [r, g, b] = stats.channels;
+  // Grayscale (1 channel) or grayscale+alpha (2) sources don't gain extra
+  // bands just by requesting an sRGB colourspace — read whatever channels
+  // are actually there instead of assuming 3+.
+  const [c0, c1, c2] = stats.channels;
+  const [r, g, b] = stats.channels.length >= 3 ? [c0, c1, c2] : [c0, c0, c0];
   return rgbToHex(r.mean, g.mean, b.mean);
 }
 
@@ -164,10 +168,13 @@ export type ComposeResult = { image: Buffer; layout: CompositeLayout };
 
 export async function composeAd(input: ComposeInput): Promise<ComposeResult> {
   const { placement } = input;
-  const base = sharp(input.background).resize(placement.width, placement.height, {
-    fit: "cover",
-    position: "centre",
-  });
+  // Normalize to flattened RGB regardless of the source's colour space —
+  // a grayscale, palette, or alpha-carrying background would otherwise
+  // give sampleRegionColor fewer than 3 channels to read.
+  const base = sharp(input.background)
+    .resize(placement.width, placement.height, { fit: "cover", position: "centre" })
+    .flatten({ background: "#ffffff" })
+    .toColorspace("srgb");
 
   const safeLeft = placement.safeZone.left;
   const safeTop = placement.safeZone.top;

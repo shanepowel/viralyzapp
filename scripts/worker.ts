@@ -1,6 +1,12 @@
 import "dotenv/config";
-import { createMetaIngestWorker, createScoreWorker, scheduleMetaIngest } from "../src/lib/queue";
+import {
+  createMetaIngestWorker,
+  createScoreWorker,
+  createStudioWorker,
+  scheduleMetaIngest,
+} from "../src/lib/queue";
 import { processScoreJob } from "../src/lib/jobs";
+import { processCreativeJob } from "../src/lib/generation";
 import { runMetaIngest } from "../src/lib/ads/meta-archive";
 import { metaAdLibraryToken } from "../src/lib/env";
 
@@ -52,10 +58,21 @@ async function main() {
     );
   }
 
+  console.log("[viralyz-worker] starting BullMQ studio worker…");
+  const studioWorker = createStudioWorker(async (creativeId) => {
+    console.log(`[viralyz-worker] generating ${creativeId}`);
+    await processCreativeJob(creativeId);
+    console.log(`[viralyz-worker] generated ${creativeId}`);
+  });
+  studioWorker.on("failed", (job, err) => {
+    console.error(`[viralyz-worker] studio job failed ${job?.id}:`, err.message);
+  });
+
   const shutdown = async () => {
     console.log("[viralyz-worker] shutting down…");
     await worker.close();
     await metaWorker?.close();
+    await studioWorker.close();
     process.exit(0);
   };
   process.on("SIGINT", () => void shutdown());
