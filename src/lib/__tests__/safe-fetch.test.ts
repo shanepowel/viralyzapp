@@ -64,6 +64,8 @@ describe("safeFetch — blocked addresses", () => {
     ["http://10.0.0.5/"],
     ["http://169.254.169.254/"],
     ["http://[::1]/"],
+    ["http://[::ffff:127.0.0.1]/"],
+    ["http://[::ffff:7f00:1]/"],
   ])("rejects %s", async (url) => {
     const { safeFetch, SafeFetchError } = await import("@/lib/safe-fetch");
     await expect(safeFetch(url)).rejects.toThrow(SafeFetchError);
@@ -120,6 +122,23 @@ describe("safeFetch — limits", () => {
             req.emit("timeout");
           }
         });
+      };
+      req.destroy = () => {};
+      return req;
+    });
+    const { safeFetch, SafeFetchError } = await import("@/lib/safe-fetch");
+    await expect(safeFetch("http://shop.example.com/", { timeoutMs: 10 })).rejects.toThrow(
+      SafeFetchError,
+    );
+  });
+
+  it("enforces timeoutMs even when the server keeps the socket alive with a trickle", async () => {
+    httpRequestMock.mockImplementation((opts) => {
+      const req = new EventEmitter() as EventEmitter & { end: () => void; destroy: () => void };
+      req.end = () => {
+        // Never ends, never times out at the socket level (no `timeout`
+        // event emitted) — only a request-wide hard deadline can end this.
+        void opts;
       };
       req.destroy = () => {};
       return req;
