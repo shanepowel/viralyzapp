@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { newTag } from "@/lib/tags";
+import { newTag, withUniqueTag } from "@/lib/tags";
 import { prisma } from "@/lib/prisma";
 
 let userId: string;
@@ -47,4 +47,27 @@ describe("newTag", () => {
     }
     expect(tags.size).toBe(1000);
   }, 20_000);
+});
+
+describe("withUniqueTag", () => {
+  it("retries the actual insert on a real tag conflict instead of failing it", async () => {
+    const takenTag = "vz_zzzz";
+    await prisma.creative.create({
+      data: { userId, brandId, productId, placement: "meta_feed_1x1", angle: "offer", tag: takenTag },
+    });
+
+    let calls = 0;
+    const result = await withUniqueTag(async (tag) => {
+      calls += 1;
+      // The first attempt deliberately collides regardless of the generated
+      // tag, simulating two requests racing on the same candidate.
+      const useTag = calls === 1 ? takenTag : tag;
+      return prisma.creative.create({
+        data: { userId, brandId, productId, placement: "meta_feed_1x1", angle: "offer", tag: useTag },
+      });
+    });
+
+    expect(calls).toBe(2);
+    expect(result.tag).not.toBe(takenTag);
+  });
 });
