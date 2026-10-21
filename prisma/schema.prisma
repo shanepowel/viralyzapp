@@ -426,7 +426,9 @@ model Creative {
   primaryText   String?
   cta           String?
   backgroundKey String?
+  backgroundUrl String?
   compositeKey  String?
+  compositeUrl  String?
   tag           String   @unique // vz_<4 lowercase base36 chars>
   aiGenerated   Boolean  @default(true)
   status        String   @default("pending") // pending | generating | ready | failed
