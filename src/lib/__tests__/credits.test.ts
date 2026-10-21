@@ -31,6 +31,13 @@ describe("credits", () => {
     expect(await balance(userId)).toBe(5);
   });
 
+  it("reserve rejects a non-positive amount instead of minting credits", async () => {
+    await grant(userId, 5, "opening balance");
+    await expect(reserve(userId, -10, randomUUID())).rejects.toThrow();
+    await expect(reserve(userId, 0, randomUUID())).rejects.toThrow();
+    expect(await balance(userId)).toBe(5);
+  });
+
   it("refund restores exactly the reserved amount", async () => {
     await grant(userId, 10, "opening balance");
     const refId = randomUUID();

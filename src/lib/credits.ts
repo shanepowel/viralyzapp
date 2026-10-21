@@ -30,6 +30,9 @@ export async function reserve(
   amount: number,
   refId: string,
 ): Promise<{ ok: true } | { ok: false; reason: "insufficient" }> {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error(`reserve: amount must be a positive integer, got ${amount}`);
+  }
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw(Prisma.sql`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`);
     const bal = await sumDeltas(tx, userId);

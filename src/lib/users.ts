@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { User } from "@/generated/prisma/client";
+import { grant } from "@/lib/credits";
 import { isAdminEmail, isClerkEnabled, isInviteOnly } from "@/lib/env";
 import { consumeInvite } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
@@ -97,6 +98,7 @@ export async function upsertUserFromClerk(input: {
       },
     },
   });
+  await grant(created.id, created.creditsRemaining, "opening balance");
 
   return toAppUser(created);
 }
