@@ -34,6 +34,10 @@ model User {
   toolRuns     ToolRun[]
   resetTokens  PasswordResetToken[]
   creditLedger CreditLedger[]
+  brand        Brand?
+  references   Reference[]
+  creatives    Creative[]
+  imports      PerformanceImport[]
 
   @@index([createdAt])
   @@index([role])
@@ -57,9 +61,9 @@ model Platform {
   user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   content Content[]
 
+  @@unique([userId, provider, handle])
   @@index([userId])
   @@index([provider])
-  @@unique([userId, provider, handle])
 }
 
 model Content {
@@ -221,14 +225,14 @@ model ScoreJob {
 }
 
 model Trend {
-  id          String   @id @default(cuid())
-  niche       String
-  title       String
-  velocity    Int
-  status      String   @default("jump_in") // jump_in | dying | stable
-  note        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  niche     String
+  title     String
+  velocity  Int
+  status    String   @default("jump_in") // jump_in | dying | stable
+  note      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
 }
@@ -246,16 +250,16 @@ model CompetitorPost {
 }
 
 model EngageComment {
-  id          String   @id @default(cuid())
-  userId      String
-  platform    String
-  authorName  String
-  body        String
+  id           String    @id @default(cuid())
+  userId       String
+  platform     String
+  authorName   String
+  body         String
   contentTitle String?
-  reply       String?
-  repliedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  reply        String?
+  repliedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -294,14 +298,14 @@ model Invite {
 }
 
 model WaitlistEntry {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  status    String   @default("pending") // pending | approved | rejected
-  note      String?
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  status     String   @default("pending") // pending | approved | rejected
+  note       String?
   inviteCode String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])
@@ -339,4 +343,153 @@ model CreditLedger {
 
   @@unique([refId, kind])
   @@index([userId])
+}
+
+/// One per account. No generation runs without a confirmed Brand.
+model Brand {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  name        String
+  sourceUrl   String?
+  colors      Json // string[] of hex colors
+  logoUrl     String?
+  voice       String?
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products  Product[]
+  creatives Creative[]
+
+  @@index([userId])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  brandId   String
+  title     String
+  price     Decimal? @db.Decimal(10, 2)
+  currency  String?
+  imageUrls Json // string[]
+  url       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand     Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  creatives Creative[]
+
+  @@index([brandId])
+}
+
+/// userId is null for Tier 1 (official, ingested) references — those are a
+/// shared catalog, not owned by any one account. It's set for Tier 2 ("Yours":
+/// a pasted URL or an upload). Deliberately no DB-level uniqueness on
+/// (source, sourceRef): idempotent re-ingestion (Task 6) and per-user dedup
+/// of a pasted URL (Task 5) are two different rules — the former ignores
+/// userId, the latter is scoped to it — so each is enforced in application
+/// code rather than forced into one constraint that would get either wrong.
+model Reference {
+  id           String    @id @default(cuid())
+  userId       String?
+  source       String // meta_eu_uk | tiktok_ccl | user_url | user_upload | vendor
+  sourceRef    String // external id or URL
+  advertiser   String?
+  firstSeenAt  DateTime?
+  lastSeenAt   DateTime?
+  daysRunning  Int?
+  variantCount Int?
+  country      String?
+  structure    Json? // { hookType, layout, offerType, cta, model }
+  thumbnailUrl String?
+  fetchedAt    DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creatives Creative[]
+
+  @@index([userId])
+  @@index([source, sourceRef])
+}
+
+model Creative {
+  id            String   @id @default(cuid())
+  userId        String
+  brandId       String
+  productId     String
+  referenceId   String?
+  placement     String // meta_feed_1x1 | meta_feed_4x5 | story_9x16 | tiktok_9x16
+  angle         String // offer | problem | proof | demo
+  headline      String?
+  primaryText   String?
+  cta           String?
+  backgroundKey String?
+  compositeKey  String?
+  tag           String   @unique // vz_<4 lowercase base36 chars>
+  aiGenerated   Boolean  @default(true)
+  status        String   @default("pending") // pending | generating | ready | failed
+  provider      String?
+  providerModel String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand           Brand            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reference       Reference?       @relation(fields: [referenceId], references: [id], onDelete: SetNull)
+  checks          Check[]
+  performanceRows PerformanceRow[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Check {
+  id            String   @id @default(cuid())
+  creativeId    String
+  checkVersion  Int
+  factors       Json // FactorResult[]
+  headline      Int?
+  headlineBasis Json // { counted: number, total: number }
+  computedAt    DateTime @default(now())
+
+  creative Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  @@index([creativeId])
+}
+
+model PerformanceImport {
+  id           String   @id @default(cuid())
+  userId       String
+  platform     String // meta | tiktok
+  filename     String
+  rowsTotal    Int
+  rowsMatched  Int
+  rowsRejected Json // { line: number, reason: string }[]
+  createdAt    DateTime @default(now())
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rows PerformanceRow[]
+
+  @@index([userId])
+}
+
+model PerformanceRow {
+  id          String   @id @default(cuid())
+  importId    String
+  creativeId  String?
+  adName      String
+  impressions Int
+  clicks      Int
+  spend       Decimal  @db.Decimal(10, 2)
+  purchases   Int?
+  revenue     Decimal? @db.Decimal(10, 2)
+  matched     Boolean  @default(false)
+
+  import   PerformanceImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  creative Creative?         @relation(fields: [creativeId], references: [id], onDelete: SetNull)
+
+  @@index([importId])
+  @@index([creativeId])
 }
