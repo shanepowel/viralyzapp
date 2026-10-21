@@ -50,6 +50,15 @@ export function isVendorAdsEnabled() {
   return v === "true" || v === "1";
 }
 
+/** Only one provider is wired up today (fal.ai); this stays forward-compatible with more. */
+export function imageProviderName(): string {
+  return (process.env.IMAGE_PROVIDER || "fal").trim().toLowerCase();
+}
+
+export function hasImageProvider() {
+  return Boolean(process.env.FAL_KEY?.trim());
+}
+
 const DEFAULT_OAUTH_SECRET = "viralyz-dev-oauth-secret-change-me";
 
 export function oauthSecret() {
