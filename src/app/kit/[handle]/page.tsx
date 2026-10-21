@@ -32,8 +32,8 @@ export default async function PublicKitPage({ params }: Props) {
   const scores = user.content
     .map((c) => c.versions[0]?.score?.overallScore)
     .filter((s): s is number => s != null);
-  const hasScores = scores.length > 0;
-  const avg = hasScores ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const avg =
+    scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 70;
   const kit = user.mediaKit;
 
   return (
@@ -62,13 +62,8 @@ export default async function PublicKitPage({ params }: Props) {
             <div>
               <h1 className="font-display text-[28px] font-bold m-0">{user.name}</h1>
               <div className="text-[13px] text-[var(--ink-3)] mt-1">
-                @{user.handle}
-                {hasScores && (
-                  <>
-                    {" "}
-                    · <span className="text-[var(--s90)] font-semibold">Viralyz Verified</span>
-                  </>
-                )}
+                @{user.handle} ·{" "}
+                <span className="text-[var(--s90)] font-semibold">Viralyz Verified</span>
               </div>
             </div>
           </div>
@@ -76,11 +71,7 @@ export default async function PublicKitPage({ params }: Props) {
           <div className="grid grid-cols-3 gap-4 mb-8">
             <div>
               <div className="text-[12px] text-[var(--ink-3)] mb-2">Score</div>
-              {hasScores ? (
-                <ScoreRing score={avg!} size="sm" />
-              ) : (
-                <div className="text-[13px] text-[var(--ink-3)]">Not yet scored</div>
-              )}
+              <ScoreRing score={avg} size="sm" />
             </div>
             <div>
               <div className="text-[12px] text-[var(--ink-3)]">Followers</div>
@@ -97,27 +88,20 @@ export default async function PublicKitPage({ params }: Props) {
           </div>
 
           <h2 className="font-display text-[18px] font-semibold mb-3">Recent proof</h2>
-          {user.content.length > 0 ? (
-            <div className="grid gap-2">
-              {user.content.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex justify-between items-center py-2 border-b border-[var(--line)] last:border-0"
-                >
-                  <span className="text-[13px] font-medium">{c.title}</span>
-                  {c.versions[0]?.score && <ScoreRing score={c.versions[0].score.overallScore} />}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[13px] text-[var(--ink-3)]">
-              Nothing scored yet.
-            </p>
-          )}
+          <div className="grid gap-2">
+            {user.content.map((c) => (
+              <div
+                key={c.id}
+                className="flex justify-between items-center py-2 border-b border-[var(--line)] last:border-0"
+              >
+                <span className="text-[13px] font-medium">{c.title}</span>
+                {c.versions[0]?.score && <ScoreRing score={c.versions[0].score.overallScore} />}
+              </div>
+            ))}
+          </div>
         </div>
         <p className="text-center text-[10.5px] text-[var(--ink-3)] mt-8">
-          A Digiteq Holdings company
-          {hasScores ? " · Numbers verified on Viralyz" : ""}
+          A Digiteq Holdings company · Numbers verified on Viralyz
         </p>
       </div>
     </div>

@@ -141,3 +141,331 @@ a {
 .score-ring-num {
   transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* —— viralyz.com SiteNav parity (app marketing home) —— */
+.vz-nav-root {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.vz-nav {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.vz-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.vz-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid var(--violet);
+  border-top-color: var(--s90);
+  transform: rotate(-45deg);
+}
+
+.vz-nav-links {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.vz-nav-item {
+  position: relative;
+}
+
+.vz-nav-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.vz-nav-trigger:hover,
+.vz-nav-item:hover > .vz-nav-trigger {
+  color: var(--ink);
+  background: var(--tint);
+}
+
+.vz-nav-plain {
+  text-decoration: none;
+}
+
+.vz-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.55;
+}
+
+.vz-mega {
+  position: absolute;
+  left: 0;
+  top: calc(100% - 2px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 1fr)) minmax(180px, 220px);
+  gap: 8px;
+  min-width: 640px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lift);
+}
+
+.vz-nav-item:nth-child(n + 2) .vz-mega {
+  grid-template-columns: repeat(2, minmax(200px, 1fr));
+  min-width: 460px;
+}
+
+.vz-mega-col h5 {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.vz-mega-link {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 8px;
+  border-radius: 12px;
+  text-decoration: none;
+}
+
+.vz-mega-link:hover {
+  background: var(--tint);
+}
+
+.vz-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--violet-soft);
+  color: var(--violet-deep);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.vz-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vz-txt strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.vz-txt span {
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.35;
+}
+
+.vz-mega-feat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--tint);
+  text-decoration: none;
+}
+
+.vz-mega-feat-art {
+  display: block;
+  height: 88px;
+  border-radius: 10px;
+}
+
+.vz-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.vz-signin {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  padding: 8px 10px;
+}
+
+.vz-signin:hover {
+  color: var(--ink);
+}
+
+.vz-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--violet);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vz-btn-primary:hover {
+  background: var(--violet-deep);
+}
+
+.vz-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vz-hamburger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.vz-hamburger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+}
+
+.vz-nav-toggle {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vz-mobile-panel {
+  display: none;
+  padding: 8px 24px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.vz-m-group {
+  border-bottom: 1px solid var(--line);
+}
+
+.vz-m-group summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vz-m-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.vz-m-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 0 14px;
+}
+
+.vz-m-sub a,
+.vz-m-plain {
+  padding: 10px 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.vz-m-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+@media (min-width: 960px) {
+  .vz-nav-links {
+    display: flex;
+  }
+
+  .vz-hamburger {
+    display: none !important;
+  }
+
+  .vz-mobile-panel {
+    display: none !important;
+  }
+}
+
+@media (max-width: 959px) {
+  .vz-hamburger {
+    display: inline-flex;
+  }
+
+  .vz-nav-toggle:checked ~ .vz-mobile-panel {
+    display: block;
+  }
+
+  .vz-signin {
+    display: none;
+  }
+
+  .vz-nav-actions .vz-btn-primary {
+    display: none;
+  }
+}

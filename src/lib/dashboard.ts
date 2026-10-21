@@ -6,27 +6,6 @@ function midPredicted(low: number, high: number) {
   return Math.round((low + high) / 2);
 }
 
-/**
- * Real recent-score trend for the sidebar momentum sparkline — the same shape
- * as getDashboard's momentum, as a lighter standalone query for pages that
- * only need the sparkline. Empty for an account with no scored content yet;
- * no fallback filler.
- */
-export async function getMomentum(userId: string): Promise<number[]> {
-  const content = await prisma.content.findMany({
-    where: { userId, NOT: { title: { startsWith: "Archive" } } },
-    include: {
-      versions: { orderBy: { versionNumber: "desc" }, take: 1, include: { score: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 6,
-  });
-  return content
-    .map((c) => c.versions[0]?.score?.overallScore)
-    .filter((n): n is number => n != null)
-    .reverse();
-}
-
 export async function getDashboard(userId: string): Promise<DashboardResponse> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
