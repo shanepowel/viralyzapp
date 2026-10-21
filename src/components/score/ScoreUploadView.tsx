@@ -220,22 +220,6 @@ export function ScoreUploadView() {
           </div>
         </div>
 
-        {durationUnknown && !sourceUrl.trim() && (
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-              Duration (sec) — couldn&rsquo;t read this file, enter it manually
-            </span>
-            <input
-              type="number"
-              min={5}
-              max={3600}
-              value={durationSec ?? ""}
-              onChange={(e) => setDurationSec(e.target.value ? Number(e.target.value) : null)}
-              className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
-            />
-          </label>
-        )}
-
         <label className="flex flex-col gap-1.5">
           <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
             Or paste a link instead
@@ -248,6 +232,25 @@ export function ScoreUploadView() {
             className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
           />
         </label>
+
+        {(durationUnknown || !file) && (
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
+              {file
+                ? "Duration (sec) — couldn’t read this file, enter it manually"
+                : "Duration (sec) — we can’t read a link’s length, enter it manually"}
+            </span>
+            <input
+              type="number"
+              required
+              min={5}
+              max={3600}
+              value={durationSec ?? ""}
+              onChange={(e) => setDurationSec(e.target.value ? Number(e.target.value) : null)}
+              className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
+            />
+          </label>
+        )}
 
         {error && (
           <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
