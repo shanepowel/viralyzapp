@@ -55,11 +55,52 @@ function isBlockedIpv4(ip: string): boolean {
   return false;
 }
 
+// Expands an IPv6 address (dotted-decimal tail and "::" compression allowed)
+// to its 8 hex groups, so a mapped IPv4 address can be recognized whether
+// Node renders it as "::ffff:127.0.0.1" or its canonical "::ffff:7f00:1".
+function expandIpv6Groups(ip: string): string[] | null {
+  const halves = ip.split("::");
+  if (halves.length > 2) return null;
+
+  const expandGroup = (group: string): string[] => {
+    if (!group.includes(".")) return [group];
+    const octets = group.split(".").map(Number);
+    if (octets.length !== 4 || octets.some((n) => Number.isNaN(n) || n < 0 || n > 255)) {
+      return [group];
+    }
+    const hi = ((octets[0] << 8) | octets[1]).toString(16);
+    const lo = ((octets[2] << 8) | octets[3]).toString(16);
+    return [hi, lo];
+  };
+
+  const head = halves[0] ? halves[0].split(":").flatMap(expandGroup) : [];
+  if (halves.length === 1) return head.length === 8 ? head : null;
+
+  const tail = halves[1] ? halves[1].split(":").flatMap(expandGroup) : [];
+  const missing = 8 - head.length - tail.length;
+  if (missing < 0) return null;
+  return [...head, ...Array(missing).fill("0"), ...tail];
+}
+
 function isBlockedIpv6(ip: string): boolean {
   const lower = ip.toLowerCase();
   if (lower === "::1" || lower === "::") return true;
-  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return isBlockedIpv4(mapped[1]);
+
+  const groups = expandIpv6Groups(lower);
+  if (groups) {
+    // IPv4-mapped (::ffff:0:0/96) and IPv4-compatible (::/96) addresses carry
+    // a real IPv4 address in the low 32 bits — check that address too,
+    // regardless of whether it's written in dotted or hex form.
+    const isMapped = groups.slice(0, 5).every((g) => g === "0") && groups[5] === "ffff";
+    const isCompatible = groups.slice(0, 6).every((g) => g === "0");
+    if (isMapped || isCompatible) {
+      const hi = parseInt(groups[6], 16);
+      const lo = parseInt(groups[7], 16);
+      const v4 = `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+      if (isMapped || hi !== 0 || lo > 1) return isBlockedIpv4(v4);
+    }
+  }
+
   const firstGroup = lower.split(":")[0];
   if (/^fe[89ab][0-9a-f]$/.test(firstGroup)) return true; // fe80::/10 link-local
   if (/^f[cd][0-9a-f]{2}$/.test(firstGroup)) return true; // fc00::/7 unique local
@@ -85,6 +126,14 @@ function request(
   opts: Required<SafeFetchOptions>,
 ): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: Buffer }> {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardDeadline);
+      fn();
+    };
+
     const transport = url.protocol === "https:" ? https : http;
     const req = transport.request(
       {
@@ -103,28 +152,37 @@ function request(
           total += chunk.length;
           if (total > opts.maxBytes) {
             req.destroy();
-            reject(new SafeFetchError("too_large", `Response exceeded ${opts.maxBytes} bytes`));
+            settle(() =>
+              reject(new SafeFetchError("too_large", `Response exceeded ${opts.maxBytes} bytes`)),
+            );
             return;
           }
           chunks.push(chunk);
         });
         res.on("end", () => {
-          resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks) });
+          settle(() =>
+            resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks) }),
+          );
         });
-        res.on("error", reject);
+        res.on("error", (err) => settle(() => reject(err)));
       },
     );
     req.on("timeout", () => {
       req.destroy();
-      reject(new SafeFetchError("timeout", `Request timed out after ${opts.timeoutMs}ms`));
+      settle(() => reject(new SafeFetchError("timeout", `Request timed out after ${opts.timeoutMs}ms`)));
     });
     req.on("error", (err) => {
-      if (err instanceof SafeFetchError) {
-        reject(err);
-      } else {
-        reject(new SafeFetchError("timeout", err.message));
-      }
+      settle(() =>
+        reject(err instanceof SafeFetchError ? err : new SafeFetchError("timeout", err.message)),
+      );
     });
+    // The socket's `timeout` option above resets on every byte received, so a
+    // server that trickles small chunks can hold the connection open far
+    // past timeoutMs. This hard deadline bounds the whole request instead.
+    const hardDeadline = setTimeout(() => {
+      req.destroy();
+      settle(() => reject(new SafeFetchError("timeout", `Request exceeded ${opts.timeoutMs}ms`)));
+    }, opts.timeoutMs);
     req.end();
   });
 }
