@@ -1,22 +1,3 @@
-// Superseded by ComponentResults below (a factor can now be genuinely
-// "unavailable" instead of always carrying a fabricated number). Left in
-// place, unused, in case anything still imports the old flat shape.
-export type ComponentScores = {
-  opening: number;
-  visuals: number;
-  pacing: number;
-  words: number;
-  timing: number;
-};
-
-export type ComponentNotes = {
-  opening: string;
-  visuals: string;
-  pacing: string;
-  words: string;
-  timing: string;
-};
-
 export type CurvePoint = {
   tSeconds: number;
   pctRemaining: number;

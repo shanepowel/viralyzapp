@@ -1,8 +1,7 @@
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isClerkEnabled } from "@/lib/env";
-import { parseSession, serializeSession } from "@/lib/session-cookie";
+import { serializeSession } from "@/lib/session-cookie";
 import { getClerkIdentity, resolveAppUser } from "@/lib/users";
 
 export const AUTH_COOKIE = "viralyz_session";
@@ -21,17 +20,6 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-/**
- * Cookie-only session. Signature-verified — a tampered or expired cookie yields null.
- * Prefer resolveAppUser / getSession for pages, which also confirm the user still exists.
- */
-export async function getCookieSession(): Promise<SessionUser | null> {
-  const jar = await cookies();
-  const payload = await parseSession(jar.get(AUTH_COOKIE)?.value);
-  if (!payload) return null;
-  return { userId: payload.userId, email: payload.email, name: payload.name };
-}
-
 /** App session — Clerk identity or cookie. */
 export async function getSession(): Promise<SessionUser | null> {
   const user = await resolveAppUser();
@@ -42,14 +30,6 @@ export async function getSession(): Promise<SessionUser | null> {
 /** HMAC-signed cookie value. Never store unsigned session state. */
 export async function sessionCookieValue(user: SessionUser): Promise<string> {
   return serializeSession(user);
-}
-
-export async function requireSession(): Promise<SessionUser> {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
-  }
-  return session;
 }
 
 /** For server pages — redirects to claim-invite (SSO) or login. */
