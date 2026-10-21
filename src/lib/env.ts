@@ -36,6 +36,10 @@ export function hasScoringService() {
   return Boolean(process.env.SCORING_SERVICE_URL?.trim());
 }
 
+export function hasAnthropic() {
+  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+}
+
 const DEFAULT_OAUTH_SECRET = "viralyz-dev-oauth-secret-change-me";
 
 export function oauthSecret() {
