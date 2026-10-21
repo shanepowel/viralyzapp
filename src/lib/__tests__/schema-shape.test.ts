@@ -33,6 +33,8 @@ describe("newTag", () => {
     expect(tag).toMatch(/^vz_[a-z0-9]{4}$/);
   });
 
+  // 1,000 sequential round trips against a real DB genuinely take a few
+  // seconds; the longer timeout is for that, not a logic bug.
   it("is unique across 1,000 calls against a seeded set", async () => {
     const tags = new Set<string>();
     for (let i = 0; i < 1000; i++) {
@@ -44,5 +46,5 @@ describe("newTag", () => {
       });
     }
     expect(tags.size).toBe(1000);
-  });
+  }, 20_000);
 });
