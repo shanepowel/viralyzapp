@@ -51,3 +51,36 @@ export function createScoreWorker(processor: (jobId: string) => Promise<void>) {
 export function queueBackend() {
   return hasRedis() ? "bullmq" : "inline";
 }
+
+export const META_INGEST_QUEUE_NAME = "viralyz-meta-ingest";
+
+let metaIngestQueue: Queue | null = null;
+
+function getMetaIngestQueue(): Queue | null {
+  if (!hasRedis()) return null;
+  if (!metaIngestQueue) {
+    metaIngestQueue = new Queue(META_INGEST_QUEUE_NAME, { connection: connectionFromUrl() });
+  }
+  return metaIngestQueue;
+}
+
+/** Registers (or re-registers, idempotently) the daily Meta ad library ingest. */
+export async function scheduleMetaIngest(): Promise<boolean> {
+  const q = getMetaIngestQueue();
+  if (!q) return false;
+  await q.add("ingest", {}, { repeat: { pattern: "0 3 * * *" }, jobId: "daily-meta-ingest" });
+  return true;
+}
+
+export function createMetaIngestWorker(processor: () => Promise<void>) {
+  if (!hasRedis()) {
+    throw new Error("REDIS_URL is required to start the meta ingest worker");
+  }
+  return new Worker(
+    META_INGEST_QUEUE_NAME,
+    async () => {
+      await processor();
+    },
+    { connection: connectionFromUrl(), concurrency: 1 },
+  );
+}

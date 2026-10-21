@@ -40,6 +40,16 @@ export function hasAnthropic() {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
 }
 
+export function metaAdLibraryToken(): string | null {
+  return process.env.META_AD_LIBRARY_TOKEN?.trim() || null;
+}
+
+/** Off by default — only on after legal review of a vendor feed's scraping/terms risk. */
+export function isVendorAdsEnabled() {
+  const v = (process.env.FEATURE_VENDOR_ADS || "false").toLowerCase();
+  return v === "true" || v === "1";
+}
+
 const DEFAULT_OAUTH_SECRET = "viralyz-dev-oauth-secret-change-me";
 
 export function oauthSecret() {
