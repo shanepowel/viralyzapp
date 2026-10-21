@@ -164,15 +164,11 @@ export async function handleSignup(req: Request) {
         handle: finalHandle,
         passwordHash: await hashPassword(parsed.data.password),
         plan: "credits",
-        creditsRemaining: 10,
         inviteCodeUsed,
         emailVerifiedAt: null,
-        mediaKit: {
-          create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
-        },
       },
     });
-    await grant(user.id, user.creditsRemaining, "opening balance");
+    await grant(user.id, 10, "opening balance");
 
     return sessionResponse(user);
   } catch (err) {

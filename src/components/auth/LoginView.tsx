@@ -5,21 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { ClerkSsoButtons } from "@/components/auth/ClerkSsoButtons";
 import { Button } from "@/components/ui/Button";
-import { ScoreRing } from "@/components/ui/ScoreRing";
 
 const STEPS = [
-  { n: "01", title: "Score", body: "Upload a video. Get a score out of 100 in under 30 seconds." },
-  { n: "02", title: "Fix", body: "Every problem comes with a fix and how many points it is worth." },
-  { n: "03", title: "Learn", body: "We track real performance so your scores get sharper over time." },
-  { n: "04", title: "Earn", body: "Your history becomes a verified profile brands can hire from." },
-] as const;
-
-const COMPONENTS = [
-  { name: "Opening", val: "19/20", pct: 95 },
-  { name: "Visuals", val: "18/20", pct: 90 },
-  { name: "Pacing", val: "17/20", pct: 85 },
-  { name: "Words", val: "18/20", pct: 90 },
-  { name: "Timing", val: "17/20", pct: 85 },
+  { n: "01", title: "Discover", body: "Browse real running ads in your category, pulled from ad libraries." },
+  { n: "02", title: "Brand", body: "Confirm your colors, logo, and voice once — every ad reuses them." },
+  { n: "03", title: "Studio", body: "Generate on-brand variants against a reference angle in minutes." },
+  { n: "04", title: "Results", body: "Import real spend data and see which pre-flight checks actually predicted it." },
 ] as const;
 
 type Mode = "signin" | "signup" | "reset" | "set-password";
@@ -37,7 +28,7 @@ export function LoginView({
 }: Props) {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || "/score";
+  const next = search.get("next") || "/discover";
   const resetToken = search.get("reset") ?? "";
   const inviteFromUrl = search.get("invite") ?? "";
   const [mode, setMode] = useState<Mode>(() => {
@@ -173,14 +164,14 @@ export function LoginView({
 
           <div className="mt-10 sm:mt-14 vfade">
             <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-[var(--violet-deep)] mb-3">
-              Creators · Brands · Proof
+              Sellers · Ads · Pre-flight
             </p>
             <h1 className="font-display text-[34px] sm:text-[42px] font-bold leading-[1.08] m-0 tracking-[-0.02em]">
-              See if content will work before you spend a penny on it.
+              Generate on-brand ad creative, pre-flight it, and see what actually worked.
             </h1>
             <p className="mt-4 text-[15px] text-[var(--ink-2)] max-w-[28rem] leading-relaxed">
-              Four steps. From guessing to getting paid. Score, fix, learn — then get hired on a
-              verified record.
+              Discover real running ads in your category, confirm your brand once, and generate
+              variants your pre-flight checks have already screened.
             </p>
           </div>
 
@@ -195,28 +186,6 @@ export function LoginView({
                 <p className="m-0 mt-1 text-[11.5px] text-[var(--ink-2)] leading-snug">{s.body}</p>
               </div>
             ))}
-          </div>
-
-          <div className="mt-8 rounded-[20px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[var(--shadow-lift)]">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-3)]">
-                  morning-routine-v2.mp4
-                </div>
-                <div className="text-[12px] text-[var(--s90)] font-semibold mt-0.5">READY</div>
-              </div>
-              <ScoreRing score={89} size="sm" />
-            </div>
-            <div className="grid grid-cols-5 gap-2">
-              {COMPONENTS.map((c) => (
-                <div key={c.name}>
-                  <div className="h-1 bg-[var(--tint)] rounded-full overflow-hidden mb-1">
-                    <div className="h-full rounded-full bg-[var(--s90)]" style={{ width: `${c.pct}%` }} />
-                  </div>
-                  <div className="font-mono text-[10px] text-[var(--ink-2)]">{c.val}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
           <p className="mt-auto pt-8 text-[10.5px] text-[var(--ink-3)] relative z-10">
@@ -263,11 +232,11 @@ export function LoginView({
           </h2>
           <p className="mt-2 text-[13.5px] text-[var(--ink-3)]">
             {mode === "signin"
-              ? "Sign in to score content, apply fixes, and grow your verified record."
+              ? "Sign in to generate ad creative and check it before you spend."
               : mode === "signup"
                 ? inviteOnly
-                  ? "Invite-only beta — 10 free scores on the Creator credits plan."
-                  : "Create an account — 10 free scores on the Creator credits plan."
+                  ? "Invite-only beta — 10 free credits to generate creative."
+                  : "Create an account — 10 free credits to generate creative."
                 : mode === "reset"
                   ? "We’ll email a one-time link if the account exists."
                   : "Enter a new password for your account."}

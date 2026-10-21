@@ -27,7 +27,7 @@ type UserRow = {
   email: string;
   name: string;
   plan: string;
-  creditsRemaining: number;
+  balance: number;
   role: string;
 };
 
@@ -46,7 +46,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteCount, setInviteCount] = useState(5);
   const [creditEmail, setCreditEmail] = useState("");
-  const [creditAmount, setCreditAmount] = useState(10);
+  const [creditDelta, setCreditDelta] = useState(10);
 
   async function refresh() {
     const [i, w, u] = await Promise.all([
@@ -113,8 +113,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: creditEmail,
-        creditsRemaining: creditAmount,
-        plan: "credits",
+        delta: creditDelta,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -122,7 +121,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
       setError(data.error ?? "Failed to update credits");
       return;
     }
-    setNotice(`Updated ${data.user.email} → ${data.user.creditsRemaining} credits`);
+    setNotice(`Updated ${data.user.email} → ${data.user.balance} credits`);
     await refresh();
   }
 
@@ -268,16 +267,15 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
             />
           </label>
           <label className="flex flex-col gap-1 w-28">
-            <span className="font-mono text-[10px] uppercase text-[var(--ink-3)]">Credits</span>
+            <span className="font-mono text-[10px] uppercase text-[var(--ink-3)]">Delta</span>
             <input
               type="number"
-              min={0}
-              value={creditAmount}
-              onChange={(e) => setCreditAmount(Number(e.target.value))}
+              value={creditDelta}
+              onChange={(e) => setCreditDelta(Number(e.target.value))}
               className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2.5 text-[14px]"
             />
           </label>
-          <Button type="submit">Set credits</Button>
+          <Button type="submit">Adjust credits</Button>
         </form>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px] text-left">
@@ -285,7 +283,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
               <tr>
                 <th className="py-2 pr-3">User</th>
                 <th className="py-2 pr-3">Plan</th>
-                <th className="py-2 pr-3">Credits</th>
+                <th className="py-2 pr-3">Balance</th>
                 <th className="py-2 pr-3">Role</th>
               </tr>
             </thead>
@@ -297,7 +295,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
                     <div className="text-[11px] text-[var(--ink-3)]">{u.email}</div>
                   </td>
                   <td className="py-2 pr-3">{u.plan}</td>
-                  <td className="py-2 pr-3">{u.creditsRemaining}</td>
+                  <td className="py-2 pr-3">{u.balance}</td>
                   <td className="py-2 pr-3">{u.role}</td>
                 </tr>
               ))}

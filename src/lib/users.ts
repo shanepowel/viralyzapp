@@ -14,7 +14,6 @@ export type AppUser = {
   name: string;
   handle: string | null;
   plan: string;
-  creditsRemaining: number;
   role: string;
   onboardingDone: boolean;
   clerkUserId: string | null;
@@ -28,7 +27,6 @@ export function toAppUser(user: User): AppUser {
     name: user.name,
     handle: user.handle,
     plan: user.plan,
-    creditsRemaining: user.creditsRemaining,
     role: user.role,
     onboardingDone: user.onboardingDone,
     clerkUserId: user.clerkUserId,
@@ -80,6 +78,7 @@ export async function upsertUserFromClerk(input: {
   const handleTaken = await prisma.user.findUnique({ where: { handle: handleBase } });
   const handle = handleTaken ? `${handleBase}${Math.floor(Math.random() * 900 + 100)}` : handleBase;
 
+  const openingBalance = isAdminEmail(email) ? 999 : 10;
   const created = await prisma.user.create({
     data: {
       email,
@@ -88,17 +87,13 @@ export async function upsertUserFromClerk(input: {
       passwordHash: null,
       clerkUserId: input.clerkUserId,
       plan: isAdminEmail(email) ? "unlimited" : "credits",
-      creditsRemaining: isAdminEmail(email) ? 999 : 10,
       role: isAdminEmail(email) ? "admin" : "user",
       emailVerifiedAt: new Date(),
       inviteCodeUsed: input.inviteCode?.trim().toUpperCase() ?? null,
       onboardingDone: false,
-      mediaKit: {
-        create: { viewsThisWeek: 0, newOrdersCount: 0, followers: 0, engagementPct: 0 },
-      },
     },
   });
-  await grant(created.id, created.creditsRemaining, "opening balance");
+  await grant(created.id, openingBalance, "opening balance");
 
   return toAppUser(created);
 }

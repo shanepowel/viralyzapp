@@ -19,6 +19,17 @@ export async function balance(userId: string): Promise<number> {
   return sumDeltas(prisma, userId);
 }
 
+export type LedgerEntry = { id: string; kind: string; delta: number; note: string | null; createdAt: Date };
+
+export async function history(userId: string, take = 50): Promise<LedgerEntry[]> {
+  return prisma.creditLedger.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, kind: true, delta: true, note: true, createdAt: true },
+  });
+}
+
 /**
  * Reserves `amount` credits for `refId` (typically a Creative id), debiting
  * the balance immediately. Locks the user row for the duration of the
@@ -105,4 +116,25 @@ export async function grant(userId: string, amount: number, note: string): Promi
   await prisma.creditLedger.create({
     data: { userId, delta: amount, kind: "grant", note },
   });
+}
+
+/** Manual admin correction to a user's balance — positive or negative. */
+export async function adjust(userId: string, delta: number, note: string): Promise<void> {
+  if (!Number.isInteger(delta) || delta === 0) {
+    throw new Error(`adjust: delta must be a nonzero integer, got ${delta}`);
+  }
+  await prisma.creditLedger.create({
+    data: { userId, delta, kind: "adjust", note },
+  });
+}
+
+/** Balances for several users in one query, keyed by userId (0 when a user has no ledger rows). */
+export async function balancesFor(userIds: string[]): Promise<Record<string, number>> {
+  const sums = await prisma.creditLedger.groupBy({
+    by: ["userId"],
+    where: { userId: { in: userIds } },
+    _sum: { delta: true },
+  });
+  const byUser = new Map(sums.map((s) => [s.userId, s._sum.delta ?? 0]));
+  return Object.fromEntries(userIds.map((id) => [id, byUser.get(id) ?? 0]));
 }

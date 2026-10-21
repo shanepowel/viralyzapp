@@ -1,9 +1,5 @@
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { AppPage } from "@/components/shell/AppPage";
-import { DashboardView } from "@/components/dashboard/DashboardView";
 import { getSession } from "@/lib/auth";
-import { getDashboard } from "@/lib/dashboard";
 import { isClerkEnabled } from "@/lib/env";
 import { getClerkIdentity } from "@/lib/users";
 
@@ -19,12 +15,5 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const data = await getDashboard(session.userId);
-  return (
-    <AppPage>
-      <Suspense fallback={null}>
-        <DashboardView data={data} />
-      </Suspense>
-    </AppPage>
-  );
+  redirect("/discover");
 }

@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
-import {
-  hasRedis,
-  hasResend,
-  hasS3,
-  hasScoringService,
-  isClerkEnabled,
-  isInviteOnly,
-} from "@/lib/env";
+import { hasRedis, hasResend, hasS3, isClerkEnabled, isInviteOnly } from "@/lib/env";
 import { isOAuthConfigured } from "@/lib/oauth";
 import { queueBackend } from "@/lib/queue";
-import { scoringBackend } from "@/lib/scoring-service";
 import { storageBackend } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +11,8 @@ export async function GET() {
   return NextResponse.json({
     storage: storageBackend(),
     queue: queueBackend(),
-    scoring: scoringBackend(),
     redis: hasRedis(),
     s3: hasS3(),
-    scoringService: hasScoringService(),
     clerk: isClerkEnabled(),
     resend: hasResend(),
     inviteOnly: isInviteOnly(),

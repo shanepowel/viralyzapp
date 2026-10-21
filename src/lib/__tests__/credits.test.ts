@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { balance, grant, refund, reserve, settle } from "@/lib/credits";
+import { balance, grant, history, refund, reserve, settle } from "@/lib/credits";
 import { prisma } from "@/lib/prisma";
 
 let userId: string;
@@ -92,5 +92,20 @@ describe("credits", () => {
     const okCount = [a, b].filter((r) => r.ok).length;
     expect(okCount).toBe(1);
     expect(await balance(userId)).toBe(4);
+  });
+
+  it("history surfaces a refund as a positive delta, and never disagrees with balance", async () => {
+    await grant(userId, 10, "opening balance");
+    const refId = randomUUID();
+    await reserve(userId, 4, refId);
+    await refund(refId);
+
+    const entries = await history(userId);
+    const refundEntry = entries.find((e) => e.kind === "refund");
+    expect(refundEntry).toBeDefined();
+    expect(refundEntry!.delta).toBeGreaterThan(0);
+
+    const sum = entries.reduce((total, e) => total + e.delta, 0);
+    expect(sum).toBe(await balance(userId));
   });
 });

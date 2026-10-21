@@ -32,10 +32,6 @@ export function hasS3() {
   );
 }
 
-export function hasScoringService() {
-  return Boolean(process.env.SCORING_SERVICE_URL?.trim());
-}
-
 export function hasAnthropic() {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
 }
