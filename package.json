@@ -13,6 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
     "worker": "tsx scripts/worker.ts",
+    "ingest:meta": "tsx scripts/ingest-meta.ts",
     "postinstall": "prisma generate",
     "test": "vitest run",
     "check": "tsc --noEmit && eslint --max-warnings 0 && vitest run"
