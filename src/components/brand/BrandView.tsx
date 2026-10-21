@@ -15,6 +15,20 @@ type Draft = {
 
 const EMPTY_DRAFT: Draft = { name: "", title: null, price: null, currency: null, imageUrls: [], colors: [] };
 
+// The source-URL box is also where an import can fail with a malformed
+// value left in it. Only carry it into the submission once it's actually a
+// URL, so a bad import never blocks the manual-entry fallback the error
+// message advertises.
+function asValidUrl(value: string): string | undefined {
+  if (!value.trim()) return undefined;
+  try {
+    new URL(value);
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+
 export function BrandView() {
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
@@ -65,7 +79,7 @@ export function BrandView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: draft.name,
-          sourceUrl: url || undefined,
+          sourceUrl: asValidUrl(url),
           colors: draft.colors,
           voice: voice || undefined,
           logoUrl: logoUrl || undefined,
@@ -74,7 +88,7 @@ export function BrandView() {
             price: draft.price || undefined,
             currency: draft.currency || undefined,
             imageUrls: imageUrl ? [imageUrl] : [],
-            url: url || undefined,
+            url: asValidUrl(url),
           },
         }),
       });
