@@ -84,3 +84,39 @@ export function createMetaIngestWorker(processor: () => Promise<void>) {
     { connection: connectionFromUrl(), concurrency: 1 },
   );
 }
+
+export const STUDIO_QUEUE_NAME = "viralyz-studio";
+
+let studioQueue: Queue | null = null;
+
+export function getStudioQueue(): Queue | null {
+  if (!hasRedis()) return null;
+  if (!studioQueue) {
+    studioQueue = new Queue(STUDIO_QUEUE_NAME, { connection: connectionFromUrl() });
+  }
+  return studioQueue;
+}
+
+export async function enqueueStudioJob(creativeId: string) {
+  const q = getStudioQueue();
+  if (!q) return false;
+  await q.add(
+    "generate",
+    { creativeId },
+    { jobId: creativeId, removeOnComplete: 100, removeOnFail: 50, attempts: 1 },
+  );
+  return true;
+}
+
+export function createStudioWorker(processor: (creativeId: string) => Promise<void>) {
+  if (!hasRedis()) {
+    throw new Error("REDIS_URL is required to start the studio worker");
+  }
+  return new Worker(
+    STUDIO_QUEUE_NAME,
+    async (job: Job<{ creativeId: string }>) => {
+      await processor(job.data.creativeId);
+    },
+    { connection: connectionFromUrl(), concurrency: 2 },
+  );
+}
