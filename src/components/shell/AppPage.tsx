@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/AppShell";
-import { getMomentum } from "@/lib/dashboard";
+import { balance } from "@/lib/credits";
 import { isClerkEnabled } from "@/lib/env";
-import { prisma } from "@/lib/prisma";
 import { getClerkIdentity, resolveAppUser } from "@/lib/users";
 
 export async function AppPage({ children }: { children: ReactNode }) {
@@ -16,23 +15,16 @@ export async function AppPage({ children }: { children: ReactNode }) {
     redirect("/login");
   }
 
-  const [libraryCount, momentum] = await Promise.all([
-    prisma.content.count({
-      where: { userId: user.id, NOT: { title: { startsWith: "Archive" } } },
-    }),
-    getMomentum(user.id),
-  ]);
+  const userBalance = await balance(user.id);
 
   return (
     <AppShell
       userName={user.name}
       plan={user.plan}
-      creditsRemaining={user.creditsRemaining}
-      libraryCount={libraryCount}
+      balance={userBalance}
       isAdmin={user.role === "admin"}
       showOnboarding={!user.onboardingDone}
       clerkEnabled={isClerkEnabled()}
-      momentum={momentum}
     >
       {children}
     </AppShell>

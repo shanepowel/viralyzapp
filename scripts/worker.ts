@@ -1,11 +1,9 @@
 import "dotenv/config";
 import {
   createMetaIngestWorker,
-  createScoreWorker,
   createStudioWorker,
   scheduleMetaIngest,
 } from "../src/lib/queue";
-import { processScoreJob } from "../src/lib/jobs";
 import { processCreativeJob } from "../src/lib/generation";
 import { runMetaIngest } from "../src/lib/ads/meta-archive";
 import { metaAdLibraryToken } from "../src/lib/env";
@@ -25,16 +23,6 @@ async function main() {
     console.error("REDIS_URL is required. Example: redis://localhost:6379");
     process.exit(1);
   }
-
-  console.log("[viralyz-worker] starting BullMQ score worker…");
-  const worker = createScoreWorker(async (jobId) => {
-    console.log(`[viralyz-worker] processing ${jobId}`);
-    await processScoreJob(jobId);
-    console.log(`[viralyz-worker] completed ${jobId}`);
-  });
-  worker.on("failed", (job, err) => {
-    console.error(`[viralyz-worker] failed ${job?.id}:`, err.message);
-  });
 
   // Only schedule the daily ingest once there's a token and something to
   // search for — otherwise every run would just fail with NotConfigured.
@@ -70,7 +58,6 @@ async function main() {
 
   const shutdown = async () => {
     console.log("[viralyz-worker] shutting down…");
-    await worker.close();
     await metaWorker?.close();
     await studioWorker.close();
     process.exit(0);
