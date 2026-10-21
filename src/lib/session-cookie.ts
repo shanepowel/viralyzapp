@@ -105,7 +105,7 @@ export async function parseSession(raw: string | undefined | null): Promise<Sess
     valid = await crypto.subtle.verify(
       ALG.name,
       await key(),
-      b64urlDecode(signature) as BufferSource,
+      b64urlDecode(signature),
       new TextEncoder().encode(encoded),
     );
   } catch {
