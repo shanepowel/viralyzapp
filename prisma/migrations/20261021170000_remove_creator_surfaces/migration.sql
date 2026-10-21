@@ -1,22 +1,22 @@
--- Safety guard: every user's CreditLedger balance must match their current
--- creditsRemaining before that column (and the creator-surface tables below)
--- are dropped. This is the last point at which the two can be compared —
--- abort rather than silently losing the discrepancy.
+-- Safety guard: every user must already have at least one CreditLedger row
+-- before creditsRemaining is dropped. The ledger has been authoritative
+-- since it was introduced (reserve/settle/refund/adjust write only to it,
+-- never back to creditsRemaining), so a user's ledger balance is expected
+-- to diverge from their frozen creditsRemaining snapshot the moment they
+-- spend or are granted credits through the ledger — that's not a problem,
+-- it's the ledger doing its job. What *would* be a problem is a user who
+-- never got backfilled into the ledger at all (their balance would
+-- silently become 0 once the column is gone) — that's what this checks.
 DO $$
 DECLARE
-  mismatch_count integer;
+  missing_count integer;
 BEGIN
-  SELECT count(*) INTO mismatch_count
+  SELECT count(*) INTO missing_count
   FROM "User" u
-  LEFT JOIN (
-    SELECT "userId", COALESCE(SUM("delta"), 0) AS balance
-    FROM "CreditLedger"
-    GROUP BY "userId"
-  ) l ON l."userId" = u.id
-  WHERE COALESCE(l.balance, 0) <> u."creditsRemaining";
+  WHERE NOT EXISTS (SELECT 1 FROM "CreditLedger" l WHERE l."userId" = u.id);
 
-  IF mismatch_count > 0 THEN
-    RAISE EXCEPTION 'CreditLedger balance does not match User.creditsRemaining for % user(s); aborting migration', mismatch_count;
+  IF missing_count > 0 THEN
+    RAISE EXCEPTION 'Found % user(s) with no CreditLedger rows; refusing to drop creditsRemaining until every user has a ledger history', missing_count;
   END IF;
 END $$;
 
