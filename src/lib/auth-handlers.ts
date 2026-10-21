@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AUTH_COOKIE, hashPassword, sessionCookieValue, verifyPassword } from "@/lib/auth";
+import { grant } from "@/lib/credits";
 import { demoLoginEmail, isDemoLoginEnabled, isInviteOnly } from "@/lib/env";
 import { consumeInvite } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
@@ -171,6 +172,7 @@ export async function handleSignup(req: Request) {
         },
       },
     });
+    await grant(user.id, user.creditsRemaining, "opening balance");
 
     return sessionResponse(user);
   } catch (err) {
