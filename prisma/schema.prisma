@@ -33,6 +33,7 @@ model User {
   comments     EngageComment[]
   toolRuns     ToolRun[]
   resetTokens  PasswordResetToken[]
+  creditLedger CreditLedger[]
 
   @@index([createdAt])
   @@index([role])
@@ -318,4 +319,24 @@ model PasswordResetToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// Append-only. A user's credit balance is always the sum of their deltas —
+/// never a mutable column. kind: grant | reserve | settle | refund | adjust.
+/// refId ties reserve/settle/refund rows to the thing they're for (typically
+/// a Creative id); @@unique([refId, kind]) keeps settle/refund idempotent —
+/// a second attempt collides instead of double-crediting or double-debiting.
+model CreditLedger {
+  id        String   @id @default(cuid())
+  userId    String
+  delta     Int
+  kind      String // grant | reserve | settle | refund | adjust
+  refId     String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([refId, kind])
+  @@index([userId])
 }

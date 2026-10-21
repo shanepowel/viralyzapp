@@ -8,8 +8,22 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: viralyz
+          POSTGRES_PASSWORD: viralyz
+          POSTGRES_DB: viralyz
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      DATABASE_URL: "postgresql://user:pass@localhost:5432/viralyz"
+      DATABASE_URL: "postgresql://viralyz:viralyz@localhost:5432/viralyz"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,4 +32,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
+      - run: npx prisma migrate deploy
       - run: npm run check
