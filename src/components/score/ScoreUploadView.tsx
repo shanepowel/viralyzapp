@@ -233,7 +233,7 @@ export function ScoreUploadView() {
           />
         </label>
 
-        {durationSec == null && (durationUnknown || !file) && (
+        {(durationUnknown || !file) && (
           <label className="flex flex-col gap-1.5">
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
               {file
