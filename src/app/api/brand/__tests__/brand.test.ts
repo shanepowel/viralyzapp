@@ -85,6 +85,26 @@ describe("POST /api/brand", () => {
     expect(body.brand.confirmedAt).not.toBeNull();
     expect(body.brand.products).toHaveLength(1);
   });
+
+  it("updates the existing product on resubmission instead of creating another one", async () => {
+    asUser(userAId);
+    const { POST } = await import("@/app/api/brand/route");
+    const submit = (product: typeof validProduct) =>
+      POST(
+        new Request("http://localhost/api/brand", {
+          method: "POST",
+          body: JSON.stringify({ name: "Hearth & Wick", colors: [], product }),
+        }),
+      );
+
+    await submit(validProduct);
+    const res = await submit({ ...validProduct, title: "Hand-Poured Candle (Large)" });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.brand.products).toHaveLength(1);
+    expect(body.brand.products[0].title).toBe("Hand-Poured Candle (Large)");
+  });
 });
 
 describe("GET /api/brand", () => {

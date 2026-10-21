@@ -48,28 +48,55 @@ export async function POST(req: Request) {
 
   const { product, ...brandFields } = parsed.data;
 
-  const brand = await prisma.brand.upsert({
-    where: { userId: auth.session.userId },
-    create: {
-      userId: auth.session.userId,
-      name: brandFields.name,
-      sourceUrl: brandFields.sourceUrl,
-      colors: brandFields.colors,
-      voice: brandFields.voice,
-      logoUrl: brandFields.logoUrl,
-      confirmedAt: new Date(),
-      products: { create: product },
-    },
-    update: {
-      name: brandFields.name,
-      sourceUrl: brandFields.sourceUrl,
-      colors: brandFields.colors,
-      voice: brandFields.voice,
-      logoUrl: brandFields.logoUrl,
-      confirmedAt: new Date(),
-      products: { create: product },
-    },
-    include: { products: true },
+  // Each brand has exactly one product in this flow (resubmitting the setup
+  // screen edits the same product rather than adding another one), so a
+  // resubmission must update the existing row instead of always creating a
+  // new one under the upserted brand.
+  const brand = await prisma.$transaction(async (tx) => {
+    const existing = await tx.brand.findUnique({
+      where: { userId: auth.session.userId },
+      include: { products: true },
+    });
+
+    if (!existing) {
+      return tx.brand.create({
+        data: {
+          userId: auth.session.userId,
+          name: brandFields.name,
+          sourceUrl: brandFields.sourceUrl,
+          colors: brandFields.colors,
+          voice: brandFields.voice,
+          logoUrl: brandFields.logoUrl,
+          confirmedAt: new Date(),
+          products: { create: product },
+        },
+        include: { products: true },
+      });
+    }
+
+    await tx.brand.update({
+      where: { id: existing.id },
+      data: {
+        name: brandFields.name,
+        sourceUrl: brandFields.sourceUrl,
+        colors: brandFields.colors,
+        voice: brandFields.voice,
+        logoUrl: brandFields.logoUrl,
+        confirmedAt: new Date(),
+      },
+    });
+
+    const existingProduct = existing.products[0];
+    if (existingProduct) {
+      await tx.product.update({ where: { id: existingProduct.id }, data: product });
+    } else {
+      await tx.product.create({ data: { ...product, brandId: existing.id } });
+    }
+
+    return tx.brand.findUniqueOrThrow({
+      where: { id: existing.id },
+      include: { products: true },
+    });
   });
 
   return NextResponse.json({ brand });
