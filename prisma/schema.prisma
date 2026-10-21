@@ -395,6 +395,7 @@ model Reference {
   source       String // meta_eu_uk | tiktok_ccl | user_url | user_upload | vendor
   sourceRef    String // external id or URL
   advertiser   String?
+  category     String? // product/vertical category, for Discover filtering
   firstSeenAt  DateTime?
   lastSeenAt   DateTime?
   daysRunning  Int?
