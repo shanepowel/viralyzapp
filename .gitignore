@@ -53,3 +53,6 @@ next-env.d.ts
 # local uploads
 /public/uploads
 !/public/uploads/.gitkeep
+
+# agent scratch state
+.superpowers/
