@@ -6,7 +6,13 @@ import { VariantCard, type CreativeDTO } from "@/components/studio/VariantCard";
 
 const POLL_INTERVAL_MS = 2000;
 
-export function CreativesView({ initialCreatives }: { initialCreatives: CreativeDTO[] }) {
+export function CreativesView({
+  initialCreatives,
+  generationAvailable,
+}: {
+  initialCreatives: CreativeDTO[];
+  generationAvailable: boolean;
+}) {
   const [creatives, setCreatives] = useState<CreativeDTO[]>(initialCreatives);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +39,7 @@ export function CreativesView({ initialCreatives }: { initialCreatives: Creative
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: creative.productId,
+          referenceId: creative.referenceId ?? undefined,
           placement: creative.placement,
           angles: [creative.angle],
         }),
@@ -67,6 +74,11 @@ export function CreativesView({ initialCreatives }: { initialCreatives: Creative
 
   return (
     <div className="vfade">
+      {!generationAvailable && (
+        <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5 mb-5">
+          Regenerating isn&apos;t available right now: the image provider or copy model isn&apos;t configured.
+        </div>
+      )}
       {error && (
         <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5 mb-5">
           {error}
@@ -79,6 +91,7 @@ export function CreativesView({ initialCreatives }: { initialCreatives: Creative
             creative={creative}
             onRegenerate={() => void regenerate(creative)}
             regenerating={regeneratingId === creative.id}
+            regenerateDisabled={!generationAvailable}
           />
         ))}
       </div>
@@ -92,6 +105,7 @@ function toDTO(raw: {
   angle: string;
   placement: string;
   productId: string;
+  referenceId: string | null;
   status: CreativeDTO["status"];
   headline: string | null;
   compositeUrl: string | null;
@@ -104,6 +118,7 @@ function toDTO(raw: {
     angle: raw.angle,
     placement: raw.placement,
     productId: raw.productId,
+    referenceId: raw.referenceId,
     status: raw.status,
     headline: raw.headline,
     compositeUrl: raw.compositeUrl,

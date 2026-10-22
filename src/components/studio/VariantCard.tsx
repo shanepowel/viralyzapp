@@ -20,6 +20,7 @@ export type CreativeDTO = {
   angle: string;
   placement: string;
   productId: string;
+  referenceId?: string | null;
   status: "pending" | "generating" | "ready" | "failed";
   headline: string | null;
   compositeUrl: string | null;
@@ -59,10 +60,13 @@ export function VariantCard({
   creative,
   onRegenerate,
   regenerating,
+  regenerateDisabled,
 }: {
   creative: CreativeDTO;
   onRegenerate: () => void;
   regenerating?: boolean;
+  /** True when generation is unavailable, so a click could never succeed. */
+  regenerateDisabled?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const latestCheck = creative.checks[0];
@@ -138,7 +142,7 @@ export function VariantCard({
             size="sm"
             variant={creative.status === "failed" ? "outline" : "ghost"}
             onClick={onRegenerate}
-            disabled={regenerating}
+            disabled={regenerating || regenerateDisabled}
           >
             {regenerating ? "Regenerating…" : creative.status === "failed" ? "Retry" : "Regenerate this one"}
           </Button>
