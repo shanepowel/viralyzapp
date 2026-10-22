@@ -55,6 +55,21 @@ export function hasImageProvider() {
   return Boolean(process.env.FAL_KEY?.trim());
 }
 
+/**
+ * Credits charged per generated variant (provider cost x margin, set per
+ * deployment). Defaults to 1; anything that isn't a positive integer is a
+ * misconfiguration and throws rather than silently charging 0 or a fraction.
+ */
+export function creditPricePerVariant(): number {
+  const raw = process.env.CREDIT_PRICE_PER_VARIANT?.trim();
+  if (!raw) return 1;
+  const price = Number(raw);
+  if (!Number.isInteger(price) || price <= 0) {
+    throw new Error(`CREDIT_PRICE_PER_VARIANT must be a positive integer, got "${raw}"`);
+  }
+  return price;
+}
+
 const DEFAULT_OAUTH_SECRET = "viralyz-dev-oauth-secret-change-me";
 
 export function oauthSecret() {

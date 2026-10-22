@@ -23,6 +23,10 @@ vi.mock("@/lib/env", async (importOriginal) => {
   return { ...actual, hasAnthropic: () => hasAnthropicMock() };
 });
 
+// Pretend every job was queued, so route tests never kick off inline
+// processing that would outlive the test's own fixtures.
+vi.mock("@/lib/queue", () => ({ enqueueStudioJob: async () => true }));
+
 const STUB_COPY: Copy = {
   headline: "Shop the new collection",
   primaryText: "Hand-poured, made in small batches.",
@@ -42,7 +46,7 @@ beforeEach(async () => {
   });
   userId = user.id;
   const brand = await prisma.brand.create({
-    data: { userId, name: "Test Brand", colors: ["#4b2e2e"] },
+    data: { userId, name: "Test Brand", colors: ["#4b2e2e"], confirmedAt: new Date() },
   });
   brandId = brand.id;
   const product = await prisma.product.create({
@@ -129,6 +133,40 @@ describe("processCreativeJob", () => {
     expect(await balance(userId)).toBe(9);
   });
 
+  it("never generates a failed (already refunded) creative for free on reprocessing", async () => {
+    await grant(userId, 10, "opening balance");
+    const creative = await makeCreative();
+    await reserve(userId, 1, creative.id);
+
+    const failing = new FakeProvider();
+    failing.failNext(1);
+    await processCreativeJob(creative.id, { provider: failing, writeCopyFn: stubWriteCopy });
+    expect(await balance(userId)).toBe(10);
+
+    await processCreativeJob(creative.id, { provider: new FakeProvider(), writeCopyFn: stubWriteCopy });
+
+    const updated = await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } });
+    expect(updated.status).toBe("failed");
+    expect(updated.compositeUrl).toBeNull();
+    expect(await balance(userId)).toBe(10);
+  });
+
+  it("fails and refunds a variant whose image prompt is blocked by moderation", async () => {
+    await grant(userId, 10, "opening balance");
+    const creative = await makeCreative();
+    await reserve(userId, 1, creative.id);
+
+    const provider = new FakeProvider();
+    const generateSpy = vi.spyOn(provider, "generate");
+    const blockedCopy = async () => ({ ...STUB_COPY, imagePrompt: "A celebrity holding the candle" });
+    await processCreativeJob(creative.id, { provider, writeCopyFn: blockedCopy });
+
+    const updated = await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } });
+    expect(updated.status).toBe("failed");
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(await balance(userId)).toBe(10);
+  });
+
   it("leaves one ready and one failed, with balance reduced by exactly one price, when one of two variants fails", async () => {
     await grant(userId, 10, "opening balance");
     const creativeA = await makeCreative("offer");
@@ -180,6 +218,50 @@ describe("POST /api/studio/generate", () => {
     expect(body.error).toBe("generation_unavailable");
     expect(await balance(userId)).toBe(10);
     expect(await prisma.creative.count({ where: { userId } })).toBe(0);
+  });
+
+  it("returns 404 and charges nothing when the brand isn't confirmed", async () => {
+    asUser(userId);
+    getImageProviderMock.mockReturnValue(new FakeProvider());
+    hasAnthropicMock.mockReturnValue(true);
+    await grant(userId, 10, "opening balance");
+    await prisma.brand.update({ where: { id: brandId }, data: { confirmedAt: null } });
+
+    const { POST } = await import("@/app/api/studio/generate/route");
+    const res = await POST(
+      new Request("http://localhost/api/studio/generate", {
+        method: "POST",
+        body: JSON.stringify({ productId, placement: "meta_feed_1x1", angles: ["offer"] }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(await balance(userId)).toBe(10);
+  });
+
+  it("reserves CREDIT_PRICE_PER_VARIANT per variant", async () => {
+    asUser(userId);
+    getImageProviderMock.mockReturnValue(new FakeProvider());
+    hasAnthropicMock.mockReturnValue(true);
+    await grant(userId, 10, "opening balance");
+    const original = process.env.CREDIT_PRICE_PER_VARIANT;
+    process.env.CREDIT_PRICE_PER_VARIANT = "3";
+
+    try {
+      const { POST } = await import("@/app/api/studio/generate/route");
+      const res = await POST(
+        new Request("http://localhost/api/studio/generate", {
+          method: "POST",
+          body: JSON.stringify({ productId, placement: "meta_feed_1x1", angles: ["offer", "proof"] }),
+        }),
+      );
+      expect(res.status).toBe(200);
+      const reserves = await prisma.creditLedger.findMany({ where: { userId, kind: "reserve" } });
+      expect(reserves.map((r) => r.delta)).toEqual([-3, -3]);
+    } finally {
+      if (original === undefined) delete process.env.CREDIT_PRICE_PER_VARIANT;
+      else process.env.CREDIT_PRICE_PER_VARIANT = original;
+    }
   });
 
   it("returns 402 when credits are insufficient", async () => {
