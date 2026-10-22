@@ -128,8 +128,10 @@ describe("listUserReferences and getReferenceForUser", () => {
   it("returns shared references and your own, but never someone else's", async () => {
     const mine = await saveUserReference(userId, { url: `https://a.example.com/${randomUUID()}` });
     const theirs = await saveUserReference(otherUserId, { url: `https://b.example.com/${randomUUID()}` });
+    // tiktok_ccl rather than meta_eu_uk: the Meta ingest tests clear shared
+    // meta_eu_uk rows in parallel.
     const shared = await prisma.reference.create({
-      data: { userId: null, source: "meta_eu_uk", sourceRef: randomUUID() },
+      data: { userId: null, source: "tiktok_ccl", sourceRef: randomUUID() },
     });
 
     expect((await getReferenceForUser(mine.id, userId))?.id).toBe(mine.id);
@@ -163,29 +165,37 @@ describe("extractStructure", () => {
 });
 
 describe("listReferences", () => {
+  const created: string[] = [];
+
   async function makeOfficialReference(data: Partial<{ daysRunning: number | null; source: string }>) {
-    return prisma.reference.create({
+    const ref = await prisma.reference.create({
       data: {
         userId: null,
-        source: data.source ?? "meta_eu_uk",
+        // Not meta_eu_uk: the Meta ingest tests clear those rows in parallel.
+        source: data.source ?? "tiktok_ccl",
         sourceRef: randomUUID(),
         daysRunning: data.daysRunning ?? null,
       },
     });
+    created.push(ref.id);
+    return ref;
   }
 
+  // Only this block's own rows: other test files share these tables in parallel.
   afterEach(async () => {
-    await prisma.reference.deleteMany({ where: { userId: null } });
+    await prisma.reference.deleteMany({ where: { id: { in: created.splice(0) } } });
   });
 
   it("excludes references whose daysRunning is null when filtering by minDaysRunning", async () => {
     const withDays = await makeOfficialReference({ daysRunning: 45 });
-    await makeOfficialReference({ daysRunning: null });
+    const unknownDays = await makeOfficialReference({ daysRunning: null });
 
+    // Other test files write shared references to the same database in
+    // parallel, so assert on this test's own rows rather than a total count.
     const { items } = await listReferences({ minDaysRunning: 30 });
     const ids = items.map((r) => r.id);
     expect(ids).toContain(withDays.id);
-    expect(ids).toHaveLength(1);
+    expect(ids).not.toContain(unknownDays.id);
   });
 
   it("never returns a Tier 2 (user-owned) reference, even when source matches", async () => {
