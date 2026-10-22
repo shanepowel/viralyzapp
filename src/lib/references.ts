@@ -1,15 +1,49 @@
-import type { Reference } from "@/generated/prisma/client";
+import type { Prisma, Reference } from "@/generated/prisma/client";
+import { extractBrand } from "@/lib/brand-import";
+import { hasAnthropic } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { safeFetch } from "@/lib/safe-fetch";
 import type { StoredObject } from "@/lib/storage";
+import { extractStructure, structureToStore } from "@/lib/structure";
+
+export type SaveReferenceDeps = {
+  /** Overrides the real (Anthropic-backed) extractStructure — stub it in tests. */
+  extract?: typeof extractStructure;
+  /** Overrides safeFetch for reading a pasted page — stub it in tests. */
+  fetchPage?: (url: string) => Promise<{ body: string }>;
+};
+
+type ExtractionInput = Parameters<typeof extractStructure>[0];
+
+/**
+ * What the model gets to look at for a user reference: the uploaded image
+ * itself, or a pasted page's title and lead image (fetched SSRF-safely).
+ */
+async function extractionInput(
+  input: { url?: string; image?: { data: Buffer; mediaType: string } },
+  deps: SaveReferenceDeps,
+): Promise<ExtractionInput | null> {
+  if (input.image) return { image: input.image };
+  if (!input.url) return null;
+  const page = await (deps.fetchPage ?? safeFetch)(input.url);
+  const draft = extractBrand(page.body, input.url);
+  if (!draft.title && draft.imageUrls.length === 0) return null;
+  return { text: draft.title ?? undefined, imageUrl: draft.imageUrls[0] };
+}
 
 /**
  * Saves (or returns the existing row for) a user's own pasted URL or
  * uploaded file as a Tier 2 reference. Idempotent per user: saving the
  * same URL twice returns the same row rather than creating a duplicate.
+ *
+ * Structure extraction runs whenever the row has none yet. It never blocks
+ * the save: an unreachable page, a missing API key, or a model that learns
+ * nothing leaves structure null rather than failing the request.
  */
 export async function saveUserReference(
   userId: string,
-  input: { url?: string; file?: StoredObject },
+  input: { url?: string; file?: StoredObject; image?: { data: Buffer; mediaType: string } },
+  deps: SaveReferenceDeps = {},
 ): Promise<Reference> {
   if (!input.url && !input.file) {
     throw new Error("saveUserReference requires a url or a file");
@@ -18,15 +52,49 @@ export async function saveUserReference(
   const sourceRef = input.url ?? input.file!.storageKey;
 
   const existing = await prisma.reference.findFirst({ where: { userId, source, sourceRef } });
-  if (existing) return existing;
+  const row =
+    existing ??
+    (await prisma.reference.create({
+      data: {
+        userId,
+        source,
+        sourceRef,
+        thumbnailUrl: input.file?.mediaUrl,
+      },
+    }));
 
-  return prisma.reference.create({
-    data: {
-      userId,
-      source,
-      sourceRef,
-      thumbnailUrl: input.file?.mediaUrl,
-    },
+  if (row.structure != null || (!deps.extract && !hasAnthropic())) return row;
+
+  try {
+    const extractionSource = await extractionInput(input, deps);
+    if (!extractionSource) return row;
+    const structure = structureToStore(await (deps.extract ?? extractStructure)(extractionSource));
+    if (!structure) return row;
+    return prisma.reference.update({
+      where: { id: row.id },
+      data: { structure: structure as Prisma.InputJsonValue },
+    });
+  } catch {
+    return row;
+  }
+}
+
+/** A user's own (Tier 2) references, newest first. */
+export async function listUserReferences(userId: string): Promise<Reference[]> {
+  return prisma.reference.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+}
+
+/**
+ * One reference, if this user may see it: any shared (Tier 1) reference,
+ * or one of their own. Someone else's Tier 2 reference reads as not found.
+ */
+export async function getReferenceForUser(id: string, userId: string): Promise<Reference | null> {
+  return prisma.reference.findFirst({
+    where: { id, OR: [{ userId: null }, { userId }] },
   });
 }
 

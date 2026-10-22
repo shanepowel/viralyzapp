@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
-import { metaAdLibraryToken } from "@/lib/env";
+import { hasAnthropic, metaAdLibraryToken } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { extractStructure, structureToStore } from "@/lib/structure";
 
 export class NotConfigured extends Error {}
 
@@ -10,7 +11,11 @@ export type MetaArchiveAd = {
   page_name?: string | null;
   ad_delivery_start_time?: string | null;
   ad_delivery_stop_time?: string | null;
+  // Meta's snapshot URL embeds the caller's access_token as a query param,
+  // so it is never stored or shown — see mapArchiveAd.
   ad_snapshot_url?: string | null;
+  ad_creative_bodies?: string[] | null;
+  ad_creative_link_titles?: string[] | null;
   // Not a real ads_archive field — passed through when a caller has it from
   // a creative-group aggregation, so variantCount reflects an actual count
   // rather than a guess.
@@ -27,8 +32,10 @@ export type ReferenceInput = {
   daysRunning: number | null;
   variantCount: number | null;
   country: string | null;
-  thumbnailUrl: string | null;
+  thumbnailUrl: null;
   structure: null;
+  /** The ad's own copy, fed to structure extraction; not a Reference column. */
+  creativeText: string | null;
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -60,11 +67,22 @@ export function mapArchiveAd(raw: MetaArchiveAd, now: Date): ReferenceInput {
     daysRunning,
     variantCount: raw.creative_group_count ?? null,
     country: raw.country ?? null,
-    thumbnailUrl: raw.ad_snapshot_url ?? null,
-    // Populated by a separate extraction pass (src/lib/structure.ts), never
-    // guessed here at ingest time.
+    // Never ad_snapshot_url: it carries our access_token, and it's an HTML
+    // page rather than an image anyway. Discover links to the public Ad
+    // Library page for the ad id instead.
+    thumbnailUrl: null,
+    // Populated by extraction at ingest (see ingestArchiveAds), never
+    // guessed from the raw record here.
     structure: null,
+    creativeText: creativeText(raw),
   };
+}
+
+function creativeText(raw: MetaArchiveAd): string | null {
+  const parts = [...(raw.ad_creative_link_titles ?? []), ...(raw.ad_creative_bodies ?? [])]
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join("\n") : null;
 }
 
 type MetaArchivePageResponse = {
@@ -89,7 +107,7 @@ export async function fetchArchivePage(params: {
   url.searchParams.set("search_terms", params.search);
   url.searchParams.set(
     "fields",
-    "id,page_name,ad_delivery_start_time,ad_delivery_stop_time,ad_snapshot_url",
+    "id,page_name,ad_delivery_start_time,ad_delivery_stop_time,ad_creative_bodies,ad_creative_link_titles",
   );
   if (params.after) url.searchParams.set("after", params.after);
 
@@ -108,16 +126,41 @@ export async function fetchArchivePage(params: {
  * constraint can't serve both this and the per-user dedup in
  * src/lib/references.ts. Always scoped to userId: null (Tier 1, shared).
  */
+export type IngestDeps = {
+  /** Overrides the real (Anthropic-backed) extractStructure — stub it in tests. */
+  extract?: typeof extractStructure;
+};
+
+/**
+ * Extracts structure from an ad's own copy. Returns null (leaving the row
+ * eligible for a later pass) when there's no copy, no model, or nothing
+ * was learned.
+ */
+async function structureFor(
+  text: string | null,
+  deps: IngestDeps,
+): Promise<Prisma.InputJsonValue | null> {
+  if (!text) return null;
+  if (!deps.extract && !hasAnthropic()) return null;
+  const result = await (deps.extract ?? extractStructure)({ text });
+  return structureToStore(result) as Prisma.InputJsonValue | null;
+}
+
 export async function ingestArchiveAds(
   ads: ReferenceInput[],
+  deps: IngestDeps = {},
 ): Promise<{ created: number; updated: number }> {
   let created = 0;
   let updated = 0;
 
-  for (const ad of ads) {
+  for (const { creativeText: text, ...ad } of ads) {
     const existing = await prisma.reference.findFirst({
       where: { userId: null, source: ad.source, sourceRef: ad.sourceRef },
     });
+
+    // Only ever extract once per reference: a row that already has
+    // structure keeps it rather than paying for the same call again.
+    const structure = existing?.structure != null ? null : await structureFor(text, deps);
 
     if (existing) {
       await prisma.reference.update({
@@ -130,16 +173,16 @@ export async function ingestArchiveAds(
           variantCount: ad.variantCount,
           country: ad.country,
           thumbnailUrl: ad.thumbnailUrl,
+          ...(structure ? { structure } : {}),
           fetchedAt: new Date(),
         },
       });
       updated += 1;
     } else {
       await prisma.reference.create({
-        // structure is always null at ingest time (a separate extraction
-        // pass populates it) — Prisma's Json field wants Prisma.JsonNull,
-        // not a literal null, to mean "store SQL NULL".
-        data: { userId: null, ...ad, structure: Prisma.JsonNull, fetchedAt: new Date() },
+        // Prisma's Json field wants Prisma.JsonNull, not a literal null, to
+        // mean "store SQL NULL" when nothing was extracted.
+        data: { userId: null, ...ad, structure: structure ?? Prisma.JsonNull, fetchedAt: new Date() },
       });
       created += 1;
     }

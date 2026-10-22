@@ -16,7 +16,7 @@ export function Button({
   ...rest
 }: Props) {
   const padding = size === "sm" ? "px-[13px] py-[7px] text-[12.5px]" : "px-4 py-[9px] text-[13.5px]";
-  const base = `inline-flex items-center justify-center gap-2 font-semibold rounded-full cursor-pointer font-[family-name:var(--font-body)] ${padding}`;
+  const base = `inline-flex items-center justify-center gap-2 font-semibold rounded-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 font-[family-name:var(--font-body)] ${padding}`;
 
   let styles = "";
   switch (variant) {

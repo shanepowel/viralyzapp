@@ -23,7 +23,7 @@ export async function runPreflight(
     checkTextArea(layout, placement),
     checkSafeZone(layout, placement),
     checkAspect(layout, placement),
-    checkCharLimits(layout, placement),
+    checkCharLimits(layout, placement, copy),
     ...checkPolicy(copy),
     await assessHook({ headline: copy.headline }),
   ];

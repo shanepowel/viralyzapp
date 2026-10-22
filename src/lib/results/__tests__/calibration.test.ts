@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calibrate, spearman } from "@/lib/results/calibration";
+import { calibrate, latestRowPerCreative, spearman } from "@/lib/results/calibration";
 
 describe("spearman", () => {
   it("is 1 for perfectly increasing series", () => {
@@ -47,5 +47,33 @@ describe("calibrate", () => {
     ];
     const result = calibrate(pairs);
     expect(result.n).toBe(20);
+  });
+});
+
+describe("latestRowPerCreative", () => {
+  const older = new Date("2026-10-01T00:00:00Z");
+  const newer = new Date("2026-10-15T00:00:00Z");
+
+  it("keeps one row per creative, from the newest import", () => {
+    const rows = [
+      { creativeId: "a", importedAt: older, impressions: 1000 },
+      { creativeId: "a", importedAt: newer, impressions: 2500 },
+      { creativeId: "b", importedAt: older, impressions: 1200 },
+    ];
+    const result = latestRowPerCreative(rows);
+    expect(result).toHaveLength(2);
+    expect(result.find((r) => r.creativeId === "a")?.impressions).toBe(2500);
+  });
+
+  it("drops rows with no creative", () => {
+    expect(latestRowPerCreative([{ creativeId: null, importedAt: newer }])).toEqual([]);
+  });
+
+  it("stops a re-import of the same 10 ads from reaching the 20-ad floor", () => {
+    const rows = [older, newer].flatMap((importedAt) =>
+      Array.from({ length: 10 }, (_, i) => ({ creativeId: `c${i}`, importedAt, score: i, impressions: 1000, clicks: i })),
+    );
+    expect(calibrate(rows).status).toBe("ok");
+    expect(calibrate(latestRowPerCreative(rows))).toEqual({ n: 10, rho: null, status: "insufficient" });
   });
 });

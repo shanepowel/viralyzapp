@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasAnthropic } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { listReferences, saveUserReference } from "@/lib/references";
+import {
+  getReferenceForUser,
+  listReferences,
+  listUserReferences,
+  saveUserReference,
+} from "@/lib/references";
 import { extractStructure } from "@/lib/structure";
 
 let userId: string;
@@ -39,6 +44,102 @@ describe("saveUserReference", () => {
   it("throws when given neither a url nor a file", async () => {
     await expect(saveUserReference(userId, {})).rejects.toThrow();
   });
+
+  const PRODUCT_PAGE = `<html><head>
+    <meta property="og:title" content="Spring sale: 30% off candles">
+    <meta property="og:image" content="https://cdn.example.com/ad.jpg">
+  </head></html>`;
+
+  const LEARNED = { hookType: "discount", layout: "product-hero", offerType: "discount", cta: "shop-now", model: "test-model" };
+
+  it("extracts structure from a pasted page's title and lead image", async () => {
+    const extract = vi.fn().mockResolvedValue(LEARNED);
+    const fetchPage = vi.fn().mockResolvedValue({ body: PRODUCT_PAGE });
+    const url = `https://shop.example.com/ads/${randomUUID()}`;
+
+    const ref = await saveUserReference(userId, { url }, { extract, fetchPage });
+
+    expect(fetchPage).toHaveBeenCalledWith(url);
+    expect(extract).toHaveBeenCalledWith({
+      text: "Spring sale: 30% off candles",
+      imageUrl: "https://cdn.example.com/ad.jpg",
+    });
+    expect(ref.structure).toMatchObject({ hookType: "discount", model: "test-model" });
+  });
+
+  it("extracts structure from an upload's own bytes", async () => {
+    const extract = vi.fn().mockResolvedValue(LEARNED);
+    const image = { data: Buffer.from("fake-png"), mediaType: "image/png" };
+    const file = { storageKey: `${userId}/ref-${randomUUID()}.png`, mediaUrl: "/uploads/x.png", backend: "local" as const };
+
+    const ref = await saveUserReference(userId, { file, image }, { extract });
+
+    expect(ref.source).toBe("user_upload");
+    expect(extract).toHaveBeenCalledWith({ image });
+    expect(ref.structure).toMatchObject({ cta: "shop-now" });
+  });
+
+  it("still saves the reference when the page can't be fetched", async () => {
+    const extract = vi.fn();
+    const fetchPage = vi.fn().mockRejectedValue(new Error("blocked_address"));
+
+    const ref = await saveUserReference(userId, { url: "https://shop.example.com/down" }, { extract, fetchPage });
+
+    expect(ref.id).toBeDefined();
+    expect(ref.structure).toBeNull();
+    expect(extract).not.toHaveBeenCalled();
+  });
+
+  it("doesn't re-extract a reference that already has structure", async () => {
+    const extract = vi.fn().mockResolvedValue(LEARNED);
+    const fetchPage = vi.fn().mockResolvedValue({ body: PRODUCT_PAGE });
+    const url = `https://shop.example.com/ads/${randomUUID()}`;
+
+    await saveUserReference(userId, { url }, { extract, fetchPage });
+    await saveUserReference(userId, { url }, { extract, fetchPage });
+
+    expect(extract).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("listUserReferences and getReferenceForUser", () => {
+  let otherUserId: string;
+
+  beforeEach(async () => {
+    const id = randomUUID().slice(0, 8);
+    const other = await prisma.user.create({
+      data: { email: `refs-other-${id}@test.local`, name: "Other", handle: `refs-other-${id}` },
+    });
+    otherUserId = other.id;
+  });
+
+  afterEach(async () => {
+    await prisma.user.delete({ where: { id: otherUserId } }).catch(() => {});
+  });
+
+  it("lists only the user's own references", async () => {
+    const mine = await saveUserReference(userId, { url: `https://a.example.com/${randomUUID()}` });
+    await saveUserReference(otherUserId, { url: `https://b.example.com/${randomUUID()}` });
+
+    const items = await listUserReferences(userId);
+    expect(items.map((r) => r.id)).toEqual([mine.id]);
+  });
+
+  it("returns shared references and your own, but never someone else's", async () => {
+    const mine = await saveUserReference(userId, { url: `https://a.example.com/${randomUUID()}` });
+    const theirs = await saveUserReference(otherUserId, { url: `https://b.example.com/${randomUUID()}` });
+    // tiktok_ccl rather than meta_eu_uk: the Meta ingest tests clear shared
+    // meta_eu_uk rows in parallel.
+    const shared = await prisma.reference.create({
+      data: { userId: null, source: "tiktok_ccl", sourceRef: randomUUID() },
+    });
+
+    expect((await getReferenceForUser(mine.id, userId))?.id).toBe(mine.id);
+    expect((await getReferenceForUser(shared.id, userId))?.id).toBe(shared.id);
+    expect(await getReferenceForUser(theirs.id, userId)).toBeNull();
+
+    await prisma.reference.delete({ where: { id: shared.id } });
+  });
 });
 
 describe("extractStructure", () => {
@@ -64,29 +165,37 @@ describe("extractStructure", () => {
 });
 
 describe("listReferences", () => {
+  const created: string[] = [];
+
   async function makeOfficialReference(data: Partial<{ daysRunning: number | null; source: string }>) {
-    return prisma.reference.create({
+    const ref = await prisma.reference.create({
       data: {
         userId: null,
-        source: data.source ?? "meta_eu_uk",
+        // Not meta_eu_uk: the Meta ingest tests clear those rows in parallel.
+        source: data.source ?? "tiktok_ccl",
         sourceRef: randomUUID(),
         daysRunning: data.daysRunning ?? null,
       },
     });
+    created.push(ref.id);
+    return ref;
   }
 
+  // Only this block's own rows: other test files share these tables in parallel.
   afterEach(async () => {
-    await prisma.reference.deleteMany({ where: { userId: null } });
+    await prisma.reference.deleteMany({ where: { id: { in: created.splice(0) } } });
   });
 
   it("excludes references whose daysRunning is null when filtering by minDaysRunning", async () => {
     const withDays = await makeOfficialReference({ daysRunning: 45 });
-    await makeOfficialReference({ daysRunning: null });
+    const unknownDays = await makeOfficialReference({ daysRunning: null });
 
+    // Other test files write shared references to the same database in
+    // parallel, so assert on this test's own rows rather than a total count.
     const { items } = await listReferences({ minDaysRunning: 30 });
     const ids = items.map((r) => r.id);
     expect(ids).toContain(withDays.id);
-    expect(ids).toHaveLength(1);
+    expect(ids).not.toContain(unknownDays.id);
   });
 
   it("never returns a Tier 2 (user-owned) reference, even when source matches", async () => {

@@ -121,6 +121,17 @@ describe("checkCharLimits", () => {
     const result = checkCharLimits(layout({ textBoxes: [] }), STORY);
     expect(result.status).toBe("unavailable");
   });
+
+  it("fails when primary text is over primaryMax, even with a short headline", () => {
+    const result = checkCharLimits(layout(), STORY, { primaryText: "x".repeat(STORY.primaryMax + 1) });
+    expect(result.passed).toBe(false);
+    expect(result.evidence).toContain(`primary text is ${STORY.primaryMax + 1}`);
+  });
+
+  it("passes when primary text is exactly primaryMax", () => {
+    const result = checkCharLimits(layout(), STORY, { primaryText: "x".repeat(STORY.primaryMax) });
+    expect(result.passed).toBe(true);
+  });
 });
 
 describe("checkTextArea", () => {

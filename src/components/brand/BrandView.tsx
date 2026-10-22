@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 
@@ -29,6 +29,20 @@ function asValidUrl(value: string): string | undefined {
   }
 }
 
+type SavedBrand = {
+  name: string;
+  sourceUrl: string | null;
+  colors: string[];
+  voice: string | null;
+  logoUrl: string | null;
+  products: Array<{
+    title: string;
+    price: string | null;
+    currency: string | null;
+    imageUrls: string[];
+  }>;
+};
+
 export function BrandView() {
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
@@ -40,6 +54,37 @@ export function BrandView() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [editingSaved, setEditingSaved] = useState(false);
+
+  // Revisiting the screen edits the saved brand rather than starting from
+  // a blank form, which a save would otherwise overwrite wholesale.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSaved() {
+      const res = await fetch("/api/brand");
+      if (!res.ok || cancelled) return;
+      const { brand } = (await res.json()) as { brand: SavedBrand | null };
+      if (!brand || cancelled) return;
+      const product = brand.products[0];
+      setUrl(brand.sourceUrl ?? "");
+      setVoice(brand.voice ?? "");
+      setLogoUrl(brand.logoUrl ?? "");
+      setDraft({
+        name: brand.name,
+        title: product?.title ?? null,
+        price: product?.price != null ? String(product.price) : null,
+        currency: product?.currency ?? null,
+        imageUrls: product?.imageUrls ?? [],
+        colors: brand.colors ?? [],
+      });
+      setImageUrl(product?.imageUrls[0] ?? "");
+      setEditingSaved(true);
+    }
+    void loadSaved().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function runImport() {
     if (!url.trim()) return;
@@ -121,10 +166,13 @@ export function BrandView() {
   return (
     <div className="vfade max-w-[560px]">
       <div className="py-[22px] pb-6">
-        <h1 className="font-display text-2xl font-bold m-0">Set up your brand</h1>
+        <h1 className="font-display text-2xl font-bold m-0">
+          {editingSaved ? "Your brand" : "Set up your brand"}
+        </h1>
         <p className="text-[13px] text-[var(--ink-3)] mt-1">
-          Paste your store or product URL, or fill this in yourself. Nothing generates until you
-          confirm it.
+          {editingSaved
+            ? "This is your saved brand. Edit anything and confirm again to update it."
+            : "Paste your store or product URL, or fill this in yourself. Nothing generates until you confirm it."}
         </p>
       </div>
 

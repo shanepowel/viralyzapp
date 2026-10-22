@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/api";
-import { calibrate } from "@/lib/results/calibration";
+import { calibrate, latestRowPerCreative } from "@/lib/results/calibration";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +11,16 @@ export async function GET() {
 
   const rows = await prisma.performanceRow.findMany({
     where: { matched: true, import: { userId: auth.session.userId } },
-    include: { creative: { include: { checks: { orderBy: { computedAt: "desc" }, take: 1 } } } },
+    include: {
+      import: { select: { createdAt: true } },
+      creative: { include: { checks: { orderBy: { computedAt: "desc" }, take: 1 } } },
+    },
   });
 
-  const pairs = rows
+  // One pair per creative, so importing the same ads twice can't inflate N.
+  const perCreative = latestRowPerCreative(rows.map((row) => ({ ...row, importedAt: row.import.createdAt })));
+
+  const pairs = perCreative
     .map((row) => {
       const headline = row.creative?.checks[0]?.headline;
       if (headline == null) return null;

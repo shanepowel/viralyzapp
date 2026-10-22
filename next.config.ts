@@ -15,6 +15,9 @@ const REMOVED_ROUTES = [
   "score",
   "content",
   "kit",
+  // Linked from the marketing site's old feature pages.
+  "analyze",
+  "caption-studio",
 ];
 
 const nextConfig: NextConfig = {

@@ -1,6 +1,7 @@
 import { AppPage } from "@/components/shell/AppPage";
 import { CreativesView } from "@/components/creatives/CreativesView";
 import type { CreativeDTO } from "@/components/studio/VariantCard";
+import { generationAvailable } from "@/lib/generation";
 import { prisma } from "@/lib/prisma";
 import { resolveAppUser } from "@/lib/users";
 
@@ -24,6 +25,7 @@ export default async function CreativesPage() {
     angle: c.angle,
     placement: c.placement,
     productId: c.productId,
+    referenceId: c.referenceId,
     status: c.status as CreativeDTO["status"],
     headline: c.headline,
     compositeUrl: c.compositeUrl,
@@ -43,7 +45,7 @@ export default async function CreativesPage() {
           Everything you&apos;ve generated, with its latest pre-flight result.
         </p>
       </div>
-      <CreativesView initialCreatives={initialCreatives} />
+      <CreativesView initialCreatives={initialCreatives} generationAvailable={generationAvailable()} />
     </AppPage>
   );
 }

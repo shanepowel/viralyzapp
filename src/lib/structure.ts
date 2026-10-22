@@ -48,14 +48,21 @@ function toStructure(raw: Record<string, unknown> | null): RefStructure {
  */
 export async function extractStructure(input: {
   imageUrl?: string;
+  /** Raw image bytes, for uploads that have no public URL the model could fetch. */
+  image?: { data: Buffer; mediaType: string };
   text?: string;
 }): Promise<RefStructure & { model: string }> {
-  if (!hasAnthropic() || (!input.imageUrl && !input.text)) {
+  if (!hasAnthropic() || (!input.imageUrl && !input.image && !input.text)) {
     return { ...ALL_NULL, model: "unavailable" };
   }
 
   const content: Array<Record<string, unknown>> = [];
-  if (input.imageUrl) {
+  if (input.image) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: input.image.mediaType, data: input.image.data.toString("base64") },
+    });
+  } else if (input.imageUrl) {
     content.push({ type: "image", source: { type: "url", url: input.imageUrl } });
   }
   if (input.text) {
@@ -87,4 +94,17 @@ export async function extractStructure(input: {
   } catch {
     return { ...ALL_NULL, model: DEFAULT_MODEL };
   }
+}
+
+/**
+ * What to store in Reference.structure for an extraction result: null when
+ * nothing was learned (model unavailable, call failed, nothing determinable),
+ * so the row stays eligible for a later extraction pass instead of being
+ * marked "done" with all-null fields.
+ */
+export function structureToStore(
+  result: RefStructure & { model: string },
+): (RefStructure & { model: string }) | null {
+  const learned = result.hookType ?? result.layout ?? result.offerType ?? result.cta;
+  return learned == null ? null : result;
 }

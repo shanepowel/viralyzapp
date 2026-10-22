@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSession } from "@/lib/api";
 import { balance, reserve } from "@/lib/credits";
-import { hasAnthropic } from "@/lib/env";
-import { CREDIT_PRICE_PER_VARIANT, processCreativeJob } from "@/lib/generation";
+import { creditPricePerVariant } from "@/lib/env";
+import { generationAvailable, processCreativeJob } from "@/lib/generation";
 import { PLACEMENTS } from "@/lib/preflight/placements";
 import { prisma } from "@/lib/prisma";
-import { getImageProvider } from "@/lib/providers";
 import { enqueueStudioJob } from "@/lib/queue";
 import { withUniqueTag } from "@/lib/tags";
 
@@ -27,7 +26,7 @@ export async function POST(req: Request) {
 
   // Checked before touching credits or the DB — a request that can't
   // possibly succeed should never reserve anything.
-  if (!getImageProvider() || !hasAnthropic()) {
+  if (!generationAvailable()) {
     return NextResponse.json({ error: "generation_unavailable" }, { status: 503 });
   }
 
@@ -40,8 +39,12 @@ export async function POST(req: Request) {
     );
   }
 
+  // No generation without a confirmed Brand (spec §5).
   const product = await prisma.product.findFirst({
-    where: { id: parsed.data.productId, brand: { userId: auth.session.userId } },
+    where: {
+      id: parsed.data.productId,
+      brand: { userId: auth.session.userId, confirmedAt: { not: null } },
+    },
   });
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -55,7 +58,8 @@ export async function POST(req: Request) {
     }
   }
 
-  const required = parsed.data.angles.length * CREDIT_PRICE_PER_VARIANT;
+  const price = creditPricePerVariant();
+  const required = parsed.data.angles.length * price;
   const currentBalance = await balance(auth.session.userId);
   if (currentBalance < required) {
     return NextResponse.json({ error: "insufficient_credits" }, { status: 402 });
@@ -79,7 +83,7 @@ export async function POST(req: Request) {
       }),
     );
 
-    const reserved = await reserve(auth.session.userId, CREDIT_PRICE_PER_VARIANT, creative.id);
+    const reserved = await reserve(auth.session.userId, price, creative.id);
     if (!reserved.ok) {
       // The upfront balance check should have ruled this out; if it still
       // happens (a concurrent request), fail this one variant rather than

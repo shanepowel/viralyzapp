@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSession } from "@/lib/api";
-import { listReferences, saveUserReference } from "@/lib/references";
+import { rateLimit } from "@/lib/rate-limit";
+import { listReferences, listUserReferences, saveUserReference } from "@/lib/references";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,13 @@ export async function GET(req: Request) {
   if (auth.error) return auth.error;
 
   const params = new URL(req.url).searchParams;
+
+  // "Yours" (Tier 2) is listed separately: listReferences is the shared
+  // catalog and never returns user-owned rows.
+  if (params.get("scope") === "mine") {
+    return NextResponse.json({ items: await listUserReferences(auth.session.userId) });
+  }
+
   const minDaysRunningRaw = params.get("minDaysRunning");
   const minDaysRunning = minDaysRunningRaw ? Number(minDaysRunningRaw) : undefined;
   if (minDaysRunningRaw && !Number.isFinite(minDaysRunning)) {
@@ -30,6 +38,13 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const auth = await requireApiSession();
   if (auth.error) return auth.error;
+
+  // Saving a URL fetches the page for structure extraction, so it's
+  // throttled like brand import.
+  const limit = await rateLimit({ key: `reference-save:${auth.session.userId}`, limit: 10, windowSec: 60 });
+  if (!limit.ok) {
+    return NextResponse.json({ error: "Too many references saved. Try again in a minute." }, { status: 429 });
+  }
 
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
@@ -21,6 +22,28 @@ const ANGLES = [
 
 const POLL_INTERVAL_MS = 2000;
 
+type ReferenceSummary = {
+  id: string;
+  source: string;
+  sourceRef: string;
+  advertiser: string | null;
+  structure: { hookType: string | null; offerType: string | null; layout: string | null } | null;
+};
+
+function referenceLabel(ref: ReferenceSummary): string {
+  if (ref.advertiser) return ref.advertiser;
+  if (ref.source === "user_url") return ref.sourceRef.replace(/^https?:\/\//, "").slice(0, 60);
+  if (ref.source === "user_upload") return "Uploaded image";
+  return "Reference ad";
+}
+
+function referenceStructure(ref: ReferenceSummary): string {
+  const s = ref.structure;
+  const parts = s ? [s.hookType, s.offerType, s.layout].filter((p): p is string => Boolean(p)) : [];
+  // Honest about what generation will actually get from this reference.
+  return parts.length > 0 ? parts.join(" · ") : "No structure extracted yet — copy won't draw on it";
+}
+
 function placeholderCreative(
   id: string,
   angle: string,
@@ -41,14 +64,22 @@ function placeholderCreative(
   };
 }
 
-export function StudioView() {
+export function StudioView({
+  initialReferenceId,
+  generationAvailable,
+}: {
+  initialReferenceId: string | null;
+  generationAvailable: boolean;
+}) {
   const [productId, setProductId] = useState<string | null>(null);
   const [productTitle, setProductTitle] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [placement, setPlacement] = useState<(typeof PLACEMENTS)[number]["id"]>("meta_feed_1x1");
   const [angles, setAngles] = useState<string[]>(["offer"]);
-  const [referenceId, setReferenceId] = useState("");
+  const [reference, setReference] = useState<ReferenceSummary | null>(null);
+  const [myReferences, setMyReferences] = useState<ReferenceSummary[]>([]);
+  const [referenceError, setReferenceError] = useState<string | null>(null);
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -76,6 +107,30 @@ export function StudioView() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReferences() {
+      const mine = await fetch("/api/references?scope=mine").then((r) => (r.ok ? r.json() : { items: [] }));
+      if (cancelled) return;
+      setMyReferences(mine.items ?? []);
+
+      if (!initialReferenceId) return;
+      const res = await fetch(`/api/references/${encodeURIComponent(initialReferenceId)}`);
+      if (cancelled) return;
+      if (!res.ok) {
+        setReferenceError("That reference isn't available any more. Pick another or generate without one.");
+        return;
+      }
+      setReference((await res.json()).reference);
+    }
+    void loadReferences().catch(() => {
+      if (!cancelled) setReferenceError("Could not load references.");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialReferenceId]);
 
   useEffect(() => {
     const timers = pollTimers.current;
@@ -113,7 +168,7 @@ export function StudioView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId,
-          referenceId: referenceId.trim() || undefined,
+          referenceId: reference?.id,
           placement,
           angles: requestAngles,
         }),
@@ -190,17 +245,43 @@ export function StudioView() {
             Product: <span className="font-semibold text-[var(--ink)]">{productTitle ?? "—"}</span>
           </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-              Reference ID (optional)
+              Reference (optional)
             </span>
-            <input
-              value={referenceId}
-              onChange={(e) => setReferenceId(e.target.value)}
-              placeholder="Paste a reference ID from Discover"
-              className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2 text-[13px] outline-none focus:border-[var(--violet)]"
-            />
-          </label>
+            {reference ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[var(--line-strong)] px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold text-[var(--ink)] truncate">{referenceLabel(reference)}</div>
+                  <div className="text-[11.5px] text-[var(--ink-3)]">{referenceStructure(reference)}</div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setReference(null)}>
+                  Clear
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                {myReferences.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => setReference(myReferences.find((r) => r.id === e.target.value) ?? null)}
+                    className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2 text-[13px] outline-none focus:border-[var(--violet)]"
+                  >
+                    <option value="">Pick one of yours…</option>
+                    {myReferences.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {referenceLabel(r)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <Link href="/discover" className="text-[12.5px] text-[var(--violet-deep)] font-semibold">
+                  Browse Discover or add your own
+                </Link>
+              </div>
+            )}
+            {referenceError && <div className="text-[12.5px] text-[var(--s30)]">{referenceError}</div>}
+          </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
@@ -254,7 +335,17 @@ export function StudioView() {
             </div>
           )}
 
-          <Button onClick={() => void generate()} disabled={!productId || angles.length === 0 || generating}>
+          {!generationAvailable && (
+            <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
+              Generation isn&apos;t available right now: the image provider or copy model isn&apos;t
+              configured. Nothing will be queued or charged.
+            </div>
+          )}
+
+          <Button
+            onClick={() => void generate()}
+            disabled={!generationAvailable || !productId || angles.length === 0 || generating}
+          >
             {generating ? "Generating…" : `Generate (${angles.length} variant${angles.length === 1 ? "" : "s"})`}
           </Button>
         </div>
@@ -268,6 +359,7 @@ export function StudioView() {
               creative={creative}
               onRegenerate={() => void regenerate(creative)}
               regenerating={generating}
+              regenerateDisabled={!generationAvailable}
             />
           ))}
         </div>

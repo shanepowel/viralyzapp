@@ -10,7 +10,9 @@ const AD_WITH_STOP_TIME = {
   page_name: "Hearth & Wick",
   ad_delivery_start_time: "2026-08-01T00:00:00Z",
   ad_delivery_stop_time: "2026-08-31T00:00:00Z",
-  ad_snapshot_url: "https://www.facebook.com/ads/archive/render_ad/?id=ad-with-stop",
+  ad_snapshot_url: "https://www.facebook.com/ads/archive/render_ad/?id=ad-with-stop&access_token=test-token",
+  ad_creative_link_titles: ["Hand-poured soy candles"],
+  ad_creative_bodies: ["20% off your first order. Shop now."],
 };
 
 const AD_STILL_RUNNING = {
@@ -57,13 +59,27 @@ describe("mapArchiveAd", () => {
     expect(mapped.structure).toBeNull();
   });
 
-  it("carries the advertiser and snapshot through as-is", async () => {
+  it("carries the advertiser through as-is", async () => {
     const { mapArchiveAd } = await import("@/lib/ads/meta-archive");
     const mapped = mapArchiveAd(AD_WITH_STOP_TIME, NOW);
     expect(mapped.advertiser).toBe("Hearth & Wick");
-    expect(mapped.thumbnailUrl).toBe(AD_WITH_STOP_TIME.ad_snapshot_url);
     expect(mapped.source).toBe("meta_eu_uk");
     expect(mapped.sourceRef).toBe("ad-with-stop");
+  });
+
+  it("never stores the snapshot URL, which carries the access token", async () => {
+    const { mapArchiveAd } = await import("@/lib/ads/meta-archive");
+    const mapped = mapArchiveAd(AD_WITH_STOP_TIME, NOW);
+    expect(mapped.thumbnailUrl).toBeNull();
+    expect(JSON.stringify(mapped)).not.toContain("access_token");
+  });
+
+  it("collects the ad's own copy for structure extraction", async () => {
+    const { mapArchiveAd } = await import("@/lib/ads/meta-archive");
+    expect(mapArchiveAd(AD_WITH_STOP_TIME, NOW).creativeText).toBe(
+      "Hand-poured soy candles\n20% off your first order. Shop now.",
+    );
+    expect(mapArchiveAd(AD_NO_START_TIME, NOW).creativeText).toBeNull();
   });
 });
 
@@ -124,6 +140,43 @@ describe("ingestArchiveAds", () => {
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].lastSeenAt?.toISOString()).toBe(new Date("2026-09-15T00:00:00Z").toISOString());
+  });
+
+  it("extracts structure from the ad copy once, and keeps it on re-ingest", async () => {
+    const { mapArchiveAd, ingestArchiveAds } = await import("@/lib/ads/meta-archive");
+    const sourceRef = `extract-${randomUUID()}`;
+    const ad = { ...AD_WITH_STOP_TIME, id: sourceRef };
+    const extract = vi.fn().mockResolvedValue({
+      hookType: "discount",
+      layout: null,
+      offerType: "discount",
+      cta: "shop-now",
+      model: "test-model",
+    });
+
+    await ingestArchiveAds([mapArchiveAd(ad, NOW)], { extract });
+    await ingestArchiveAds([mapArchiveAd(ad, NOW)], { extract });
+
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(extract).toHaveBeenCalledWith({ text: "Hand-poured soy candles\n20% off your first order. Shop now." });
+    const row = await prisma.reference.findFirstOrThrow({ where: { sourceRef, userId: null } });
+    expect(row.structure).toMatchObject({ hookType: "discount", cta: "shop-now", model: "test-model" });
+  });
+
+  it("leaves structure null when extraction learns nothing, so a later pass can retry", async () => {
+    const { mapArchiveAd, ingestArchiveAds } = await import("@/lib/ads/meta-archive");
+    const sourceRef = `extract-null-${randomUUID()}`;
+    const extract = vi.fn().mockResolvedValue({
+      hookType: null,
+      layout: null,
+      offerType: null,
+      cta: null,
+      model: "test-model",
+    });
+
+    await ingestArchiveAds([mapArchiveAd({ ...AD_WITH_STOP_TIME, id: sourceRef }, NOW)], { extract });
+    const row = await prisma.reference.findFirstOrThrow({ where: { sourceRef, userId: null } });
+    expect(row.structure).toBeNull();
   });
 });
 

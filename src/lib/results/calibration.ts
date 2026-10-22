@@ -64,3 +64,24 @@ export function calibrate(pairs: CalibrationPair[]): {
   const ctrs = qualifying.map((p) => (p.impressions > 0 ? p.clicks / p.impressions : 0));
   return { n: qualifying.length, rho: spearman(scores, ctrs), status: "ok" };
 }
+
+/**
+ * One row per creative across every import: the row from the newest import
+ * wins. Each import is treated as a full snapshot of an ad's results (how
+ * Ads Manager and TikTok exports for a date range read), so re-importing a
+ * later export for the same ads replaces their numbers instead of adding a
+ * second "ad" to N. Rows with no creative are left out.
+ */
+export function latestRowPerCreative<T extends { creativeId: string | null; importedAt: Date }>(
+  rows: T[],
+): T[] {
+  const latest = new Map<string, T>();
+  for (const row of rows) {
+    if (!row.creativeId) continue;
+    const current = latest.get(row.creativeId);
+    if (!current || row.importedAt.getTime() > current.importedAt.getTime()) {
+      latest.set(row.creativeId, row);
+    }
+  }
+  return [...latest.values()];
+}

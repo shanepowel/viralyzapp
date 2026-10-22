@@ -2,6 +2,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { Angle } from "@/lib/copy";
 import { writeCopy } from "@/lib/copy";
 import { refund, settle } from "@/lib/credits";
+import { hasAnthropic } from "@/lib/env";
+import { moderateImagePrompt } from "@/lib/moderation";
 import { PLACEMENTS } from "@/lib/preflight/placements";
 import { runPreflight } from "@/lib/preflight/index";
 import type { Placement } from "@/lib/preflight/types";
@@ -12,8 +14,14 @@ import type { ImageProvider } from "@/lib/providers/types";
 import { storeUpload } from "@/lib/storage";
 import type { RefStructure } from "@/lib/structure";
 
-/** Price per generated variant, in credits. Config, not provider code. */
-export const CREDIT_PRICE_PER_VARIANT = 1;
+/**
+ * Whether a Generate request could succeed right now: an image provider and
+ * the copy model are both configured. Screens use it to disable Generate up
+ * front; the generate route refuses with 503 when it's false.
+ */
+export function generationAvailable(): boolean {
+  return getImageProvider() !== null && hasAnthropic();
+}
 
 /** Bump only in a versioned offline release — never per user. */
 const CHECK_VERSION = 1;
@@ -50,15 +58,18 @@ export type GenerationDeps = {
 /**
  * Generates one creative end to end: copy, background image, composite,
  * pre-flight, then settles or refunds the credit reserved for it at
- * /api/studio/generate time. Idempotent — a creative already `ready` is
- * skipped rather than regenerated and re-billed.
+ * /api/studio/generate time. Idempotent — a creative already `ready` or
+ * `failed` is skipped rather than regenerated and re-billed.
  */
 export async function processCreativeJob(creativeId: string, deps: GenerationDeps = {}): Promise<void> {
   const creative = await prisma.creative.findUniqueOrThrow({
     where: { id: creativeId },
     include: { brand: true, product: true, reference: true },
   });
-  if (creative.status === "ready") return;
+  // Both outcomes are terminal. A failed creative has already been
+  // refunded, so generating it now would hand out a free variant; retrying
+  // creates a fresh creative with its own reservation instead.
+  if (creative.status === "ready" || creative.status === "failed") return;
 
   const provider = deps.provider !== undefined ? deps.provider : getImageProvider();
   if (!provider) {
@@ -79,6 +90,15 @@ export async function processCreativeJob(creativeId: string, deps: GenerationDep
       reference: referenceStructure,
       angle: creative.angle as Angle,
     });
+
+    // Copy and the image prompt are model-written from user-supplied brand
+    // text, so the prompt is screened before it reaches the image provider.
+    // A blocked prompt fails the variant (and refunds) rather than
+    // generating something we can't stand behind.
+    const moderation = moderateImagePrompt(copy.imagePrompt);
+    if (!moderation.ok) {
+      throw new Error(`Image prompt blocked: ${moderation.reason}`);
+    }
 
     const placement = PLACEMENTS[creative.placement as Placement["id"]];
     const productImageUrls = (creative.product.imageUrls as unknown as string[]) ?? [];
