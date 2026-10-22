@@ -146,7 +146,16 @@ export function checkAspect(layout: CompositeLayout, placement: Placement): Fact
   };
 }
 
-export function checkCharLimits(layout: CompositeLayout, placement: Placement): FactorResult {
+/**
+ * Headline length is measured from the composited layout. Primary text never
+ * lands in the image, so it's passed in as copy and checked against the
+ * placement's primaryMax alongside it.
+ */
+export function checkCharLimits(
+  layout: CompositeLayout,
+  placement: Placement,
+  copy?: { primaryText: string },
+): FactorResult {
   if (layout.textBoxes.length === 0) {
     return unavailable("char_limits", "Character limits", "computed", placement.source);
   }
@@ -161,15 +170,24 @@ export function checkCharLimits(layout: CompositeLayout, placement: Placement): 
     if (box.text.length > longest.text.length) longest = box;
   }
 
-  const passed = longest.text.length <= placement.headlineMax;
+  const headlineLength = longest.text.length;
+  const parts = [`Headline is ${headlineLength} characters (limit ${placement.headlineMax})`];
+  let passed = headlineLength <= placement.headlineMax;
+
+  if (copy) {
+    const primaryLength = copy.primaryText.length;
+    parts.push(`primary text is ${primaryLength} (limit ${placement.primaryMax})`);
+    passed = passed && primaryLength <= placement.primaryMax;
+  }
+
   return {
     id: "char_limits",
     label: "Character limits",
     kind: "computed",
     status: "scored",
-    value: longest.text.length,
+    value: headlineLength,
     passed,
-    evidence: `Headline is ${longest.text.length} characters (limit ${placement.headlineMax})`,
+    evidence: parts.join("; "),
     source: placement.source,
   };
 }
