@@ -44,6 +44,19 @@ function originalLink(ref: DiscoverReference): string | null {
   return null;
 }
 
+function cardTitle(ref: DiscoverReference): string {
+  if (ref.advertiser) return ref.advertiser;
+  if (ref.source === "user_url") {
+    try {
+      return new URL(ref.sourceRef).hostname;
+    } catch {
+      return ref.sourceRef;
+    }
+  }
+  if (ref.source === "user_upload") return "Your upload";
+  return "Unknown advertiser";
+}
+
 function structureSummary(ref: DiscoverReference): string | null {
   const s = ref.structure;
   if (!s) return null;
@@ -290,7 +303,7 @@ export function DiscoverView({
               </div>
               <div>
                 <div className="text-[13px] font-semibold text-[var(--ink)] truncate">
-                  {ref.advertiser ?? "Unknown advertiser"}
+                  {cardTitle(ref)}
                 </div>
                 <div className="text-[11.5px] text-[var(--ink-3)] mt-0.5">
                   {provenanceBadge(ref)}
