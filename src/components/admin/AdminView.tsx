@@ -127,10 +127,10 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
 
   return (
     <div className="pt-8 pb-16">
-      <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-[var(--violet-deep)] m-0">
+      <p className="text-[12px] font-semibold text-muted m-0">
         Admin
       </p>
-      <h1 className="font-display text-[32px] font-bold mt-2 mb-2 tracking-[-0.02em]">
+      <h1 className="font-display text-[32px] mt-2 mb-2 tracking-[-0.02em]">
         Beta ops
       </h1>
       <p className="text-[14px] text-[var(--ink-3)] m-0 mb-6">
@@ -138,17 +138,17 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
       </p>
 
       {error ? (
-        <div className="mb-4 rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[13px] px-3.5 py-2.5">
+        <div className="mb-4 rounded-inner bg-[var(--s30-soft)] text-[var(--s30)] text-[13px] px-3.5 py-2.5">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div className="mb-4 rounded-[10px] bg-[var(--s90-soft)] text-[var(--ink-2)] text-[13px] px-3.5 py-2.5 break-all">
+        <div className="mb-4 rounded-inner bg-[var(--s90-soft)] text-[var(--ink-2)] text-[13px] px-3.5 py-2.5 break-all">
           {notice}
         </div>
       ) : null}
 
-      <section className="rounded-[16px] border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
+      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
         <h2 className="font-display text-[18px] m-0 mb-3">Create invites</h2>
         <form onSubmit={createInvites} className="flex flex-col sm:flex-row gap-3 items-end">
           <label className="flex flex-col gap-1 flex-1 w-full">
@@ -158,7 +158,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="creator@studio.com"
-              className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2.5 text-[14px]"
+              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
             />
           </label>
           <label className="flex flex-col gap-1 w-28">
@@ -169,7 +169,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
               max={50}
               value={inviteCount}
               onChange={(e) => setInviteCount(Number(e.target.value))}
-              className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2.5 text-[14px]"
+              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
             />
           </label>
           <Button type="submit">Generate</Button>
@@ -198,7 +198,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
         </div>
       </section>
 
-      <section className="rounded-[16px] border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
+      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
         <h2 className="font-display text-[18px] m-0 mb-3">Waitlist</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px] text-left">
@@ -229,7 +229,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="text-[var(--violet-deep)] font-semibold border-none bg-transparent cursor-pointer p-0"
+                          className="text-ink font-semibold underline underline-offset-4 border-none bg-transparent cursor-pointer p-0"
                           onClick={() => void waitlistAction(entry.id, "approve")}
                         >
                           Approve
@@ -253,7 +253,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
         </div>
       </section>
 
-      <section className="rounded-[16px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[var(--shadow)]">
+      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 shadow-[var(--shadow)]">
         <h2 className="font-display text-[18px] m-0 mb-3">Credits</h2>
         <form onSubmit={setCredits} className="flex flex-col sm:flex-row gap-3 items-end mb-4">
           <label className="flex flex-col gap-1 flex-1 w-full">
@@ -263,7 +263,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
               required
               value={creditEmail}
               onChange={(e) => setCreditEmail(e.target.value)}
-              className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2.5 text-[14px]"
+              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
             />
           </label>
           <label className="flex flex-col gap-1 w-28">
@@ -272,7 +272,7 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
               type="number"
               value={creditDelta}
               onChange={(e) => setCreditDelta(Number(e.target.value))}
-              className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2.5 text-[14px]"
+              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
             />
           </label>
           <Button type="submit">Adjust credits</Button>

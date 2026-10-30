@@ -32,10 +32,10 @@ export default function WaitlistPage() {
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] flex items-center justify-center px-6 py-16">
       <div className="w-full max-w-[440px]">
-        <Link href="/" className="font-display font-bold text-[17px] no-underline text-[var(--ink)]">
+        <Link href="/" className="font-display text-[17px] no-underline text-[var(--ink)]">
           Viralyz
         </Link>
-        <h1 className="font-display text-[32px] font-bold mt-8 mb-2 tracking-[-0.02em]">
+        <h1 className="font-display text-[32px] mt-8 mb-2 tracking-[-0.02em]">
           Join the waitlist
         </h1>
         <p className="text-[14px] text-[var(--ink-3)] m-0 mb-8">
@@ -43,11 +43,11 @@ export default function WaitlistPage() {
         </p>
 
         {done ? (
-          <div className="rounded-[16px] border border-[var(--line)] bg-[var(--card)] p-5 shadow-[var(--shadow)]">
+          <div className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 shadow-[var(--shadow)]">
             <strong>You&apos;re on the list.</strong>
             <p className="m-0 mt-2 text-[13.5px] text-[var(--ink-2)]">
               We&apos;ll email you an invite code. Already have one?{" "}
-              <Link href="/login?mode=signup" className="text-[var(--violet-deep)] font-semibold">
+              <Link href="/login?mode=signup" className="text-ink font-semibold underline underline-offset-4">
                 Sign up
               </Link>
             </p>
@@ -62,7 +62,7 @@ export default function WaitlistPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Optional"
-                className="w-full rounded-[14px] border border-[var(--line-strong)] bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-[var(--violet)]"
+                className="w-full rounded-inner border border-line bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-ink"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -75,11 +75,11 @@ export default function WaitlistPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@studio.com"
-                className="w-full rounded-[14px] border border-[var(--line-strong)] bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-[var(--violet)]"
+                className="w-full rounded-inner border border-line bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-ink"
               />
             </label>
             {error ? (
-              <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
+              <div className="rounded-inner bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
                 {error}
               </div>
             ) : null}
@@ -90,7 +90,7 @@ export default function WaitlistPage() {
         )}
 
         <p className="mt-6 text-[13px] text-[var(--ink-3)]">
-          <Link href="/login" className="text-[var(--violet-deep)] font-semibold no-underline">
+          <Link href="/login" className="text-ink font-semibold underline underline-offset-4">
             Back to sign in
           </Link>
         </p>

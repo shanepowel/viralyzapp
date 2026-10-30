@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/api";
-import { getReferenceForUser } from "@/lib/references";
+import { deleteUserReference, getReferenceForUser } from "@/lib/references";
 
 export const dynamic = "force-dynamic";
 
@@ -16,4 +16,16 @@ export async function GET(_req: Request, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ reference });
+}
+
+export async function DELETE(_req: Request, { params }: Params) {
+  const auth = await requireApiSession();
+  if (auth.error) return auth.error;
+
+  const { id } = await params;
+  const deleted = await deleteUserReference(id, auth.session.userId);
+  if (!deleted) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 import { AppPage } from "@/components/shell/AppPage";
 import { StudioView } from "@/components/studio/StudioView";
+import { creditPricePerVariant } from "@/lib/env";
 import { generationAvailable } from "@/lib/generation";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function StudioPage({ searchParams }: Props) {
       <StudioView
         initialReferenceId={typeof reference === "string" ? reference : null}
         generationAvailable={generationAvailable()}
+        creditsPerVariant={creditPricePerVariant()}
       />
     </AppPage>
   );

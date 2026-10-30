@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasAnthropic } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import {
+  deleteUserReference,
   getReferenceForUser,
   listReferences,
   listUserReferences,
@@ -204,5 +205,28 @@ describe("listReferences", () => {
     const { items } = await listReferences({ source: "user_url" });
     expect(items.every((r) => r.userId === null)).toBe(true);
     expect(items.some((r) => r.source === "user_url")).toBe(false);
+  });
+});
+
+describe("deleteUserReference", () => {
+  it("deletes the user's own reference", async () => {
+    const ref = await saveUserReference(userId, { url: `https://shop.example.com/p/${randomUUID()}` });
+    expect(await deleteUserReference(ref.id, userId)).toBe(true);
+    expect(await prisma.reference.findUnique({ where: { id: ref.id } })).toBeNull();
+  });
+
+  it("refuses another user's reference and official library rows", async () => {
+    const mine = await saveUserReference(userId, { url: `https://shop.example.com/p/${randomUUID()}` });
+    const official = await prisma.reference.create({
+      data: { source: "meta_eu_uk", sourceRef: `del-${randomUUID()}` },
+    });
+    try {
+      expect(await deleteUserReference(mine.id, "someone-else")).toBe(false);
+      expect(await deleteUserReference(official.id, userId)).toBe(false);
+      expect(await prisma.reference.findUnique({ where: { id: mine.id } })).not.toBeNull();
+      expect(await prisma.reference.findUnique({ where: { id: official.id } })).not.toBeNull();
+    } finally {
+      await prisma.reference.delete({ where: { id: official.id } });
+    }
   });
 });

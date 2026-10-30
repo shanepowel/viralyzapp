@@ -1,72 +1,138 @@
 @import "tailwindcss";
+@import "../styles/tokens.css";
 
+/*
+ * The app's older variable names, mapped onto the Studio tokens so every
+ * screen follows light/dark. New code should use the Tailwind names below
+ * (bg-panel, text-muted, border-line, ...) or the --vz-* tokens directly.
+ */
 :root {
-  --paper: #fafaf7;
-  --card: #ffffff;
-  --tint: #f1efea;
-  --ink: #1b1826;
-  --ink-2: #5b5768;
-  --ink-3: #928fa0;
-  --line: #e7e4dd;
-  --line-strong: #d6d2c8;
-  --violet: #6c4cf1;
-  --violet-deep: #5638d6;
-  --violet-soft: #efebff;
-  --s90: #0fa968;
-  --s90-soft: #e3f6ed;
-  --s70: #7ca426;
-  --s70-soft: #f2f8e2;
-  --s50: #d9950b;
-  --s50-soft: #fcf3e1;
-  --s30: #de4e4e;
-  --s30-soft: #fbeaea;
-  --shadow: 0 1px 2px rgba(27, 24, 38, 0.05), 0 6px 20px rgba(27, 24, 38, 0.05);
-  --shadow-lift: 0 2px 4px rgba(27, 24, 38, 0.06), 0 16px 40px rgba(27, 24, 38, 0.1);
-  --font-display: "Bricolage Grotesque", sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --paper: var(--vz-bg);
+  --card: var(--vz-card);
+  --tint: var(--vz-panel);
+  --ink: var(--vz-ink);
+  --ink-2: var(--vz-muted);
+  --ink-3: var(--vz-muted);
+  --line: var(--vz-line);
+  --line-strong: color-mix(in srgb, var(--vz-line) 70%, var(--vz-muted));
+  --violet: var(--vz-btn);
+  --violet-deep: var(--vz-ink);
+  --violet-soft: var(--vz-panel);
+  --s90: var(--vz-pass);
+  --s90-soft: var(--vz-pass-bg);
+  --s50: var(--vz-warn);
+  --s50-soft: var(--vz-warn-bg);
+  --s30: var(--vz-fail);
+  --s30-soft: var(--vz-fail-bg);
+  --shadow: var(--vz-shadow-float);
 }
 
 @theme inline {
-  --color-paper: var(--paper);
-  --color-card: var(--card);
-  --color-tint: var(--tint);
-  --color-ink: var(--ink);
-  --color-ink-2: var(--ink-2);
-  --color-ink-3: var(--ink-3);
-  --color-line: var(--line);
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+  /* No monospace in the system: font-mono is Archivo, with tabular figures set on body. */
+  --font-mono: var(--font-archivo), system-ui, sans-serif;
+
+  --color-bg: var(--vz-bg);
+  --color-panel: var(--vz-panel);
+  --color-card: var(--vz-card);
+  --color-line: var(--vz-line);
   --color-line-strong: var(--line-strong);
-  --color-violet: var(--violet);
-  --color-violet-deep: var(--violet-deep);
-  --color-violet-soft: var(--violet-soft);
-  --font-sans: var(--font-body);
-  --font-mono: var(--font-mono);
+  --color-ink: var(--vz-ink);
+  --color-muted: var(--vz-muted);
+  --color-btn: var(--vz-btn);
+  --color-btn-ink: var(--vz-btn-ink);
+  --color-inv: var(--vz-inv);
+  --color-inv-ink: var(--vz-inv-ink);
+  --color-inv-muted: var(--vz-inv-muted);
+  --color-inv-line: var(--vz-inv-line);
+  --color-scrim: var(--vz-scrim);
+  --color-pass: var(--vz-pass);
+  --color-pass-bg: var(--vz-pass-bg);
+  --color-warn: var(--vz-warn);
+  --color-warn-bg: var(--vz-warn-bg);
+  --color-fail: var(--vz-fail);
+  --color-fail-bg: var(--vz-fail-bg);
+
+  --radius-inner: var(--vz-radius-inner);
+  --radius-card: var(--vz-radius-card);
+  --radius-panel: var(--vz-radius-panel);
+
+  --shadow-float: var(--vz-shadow-float);
 }
 
-* {
-  box-sizing: border-box;
+/* Wide display type: 125% width, 600 weight, tight tracking. */
+@utility font-display {
+  font-stretch: 125%;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
-html,
-body {
-  margin: 0;
-  min-height: 100%;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-::selection {
-  background: var(--violet-soft);
-  color: var(--violet-deep);
+/* Dot-grid texture, as behind the marketing site's product showcases. */
+@utility dots {
+  background-image: radial-gradient(var(--vz-dot) 1px, transparent 1.2px);
+  background-size: 14px 14px;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Base rules sit in the base layer so Tailwind utilities (text-btn-ink on a link, etc.) win. */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--vz-bg);
+    color: var(--vz-ink);
+    font-family: var(--font-archivo), system-ui, sans-serif;
+    font-stretch: 104%;
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: var(--vz-ink);
+    color: var(--vz-bg);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--vz-ink);
+    outline-offset: 2px;
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: var(--vz-ink);
+    background: var(--vz-card);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--vz-muted);
+    opacity: 0.8;
+  }
+
+  input:disabled,
+  select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 @keyframes vfade {
@@ -81,63 +147,55 @@ a {
 }
 
 .vfade {
-  animation: vfade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: vfade var(--vz-dur-slow) var(--vz-ease-out);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .vfade,
-  .btn-primary,
-  .score-ring-num {
-    animation: none !important;
-    transition: none !important;
+/* Placeholder sweep while a variant is queued or generating. */
+@keyframes vz-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
   }
 }
 
-.font-display {
-  font-family: var(--font-display);
+.vz-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--vz-card) 70%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: vz-shimmer 1.6s linear infinite;
 }
 
-.font-mono {
-  font-family: var(--font-mono);
+.btn-primary,
+.btn-outline,
+.btn-ghost,
+.nav-item {
+  transition:
+    opacity var(--vz-dur-fast) var(--vz-ease-out),
+    background-color var(--vz-dur-fast) var(--vz-ease-out),
+    border-color var(--vz-dur-fast) var(--vz-ease-out),
+    color var(--vz-dur-fast) var(--vz-ease-out);
 }
 
-.btn-primary {
-  transition: background 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
-.btn-primary:hover {
-  background: var(--violet-deep);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lift);
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--vz-muted);
 }
 
-.btn-outline {
-  transition: border-color 0.16s ease;
-}
-
-.btn-outline:hover {
-  border-color: var(--ink);
-}
-
-.btn-ghost {
-  transition: background 0.16s ease, color 0.16s ease;
-}
-
-.btn-ghost:hover {
-  background: var(--tint);
-  color: var(--ink);
-}
-
+.btn-ghost:hover:not(:disabled),
 .nav-item:hover {
-  background: var(--tint);
-  color: var(--ink);
+  background: var(--vz-panel);
+  color: var(--vz-ink);
 }
 
 .table-row:hover {
-  background: var(--tint);
-}
-
-.score-ring-num {
-  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--vz-panel);
 }

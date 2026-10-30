@@ -1,4 +1,6 @@
 import { AppPage } from "@/components/shell/AppPage";
+import { ButtonLink } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { CreativesView } from "@/components/creatives/CreativesView";
 import type { CreativeDTO } from "@/components/studio/VariantCard";
 import { generationAvailable } from "@/lib/generation";
@@ -28,6 +30,8 @@ export default async function CreativesPage() {
     referenceId: c.referenceId,
     status: c.status as CreativeDTO["status"],
     headline: c.headline,
+    primaryText: c.primaryText,
+    cta: c.cta,
     compositeUrl: c.compositeUrl,
     aiGenerated: c.aiGenerated,
     checks: c.checks.map((check) => ({
@@ -39,12 +43,11 @@ export default async function CreativesPage() {
 
   return (
     <AppPage>
-      <div className="py-[22px] pb-6">
-        <h1 className="font-display text-2xl font-bold m-0">Creatives</h1>
-        <p className="text-[13px] text-[var(--ink-3)] mt-1">
-          Everything you&apos;ve generated, with its latest pre-flight result.
-        </p>
-      </div>
+      <PageHeader
+        title="Creatives"
+        description="Everything you've generated, with its latest pre-flight result. Put each tag in the ad name so Results can match spend back to it."
+        actions={<ButtonLink href="/studio">New creative</ButtonLink>}
+      />
       <CreativesView initialCreatives={initialCreatives} generationAvailable={generationAvailable()} />
     </AppPage>
   );

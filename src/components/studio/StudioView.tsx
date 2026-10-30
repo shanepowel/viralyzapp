@@ -2,23 +2,55 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { FieldLabel, inputClasses } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { VariantCard, type CreativeDTO } from "@/components/studio/VariantCard";
 
 const PLACEMENTS = [
-  { id: "meta_feed_1x1", label: "Meta Feed 1:1" },
-  { id: "meta_feed_4x5", label: "Meta Feed 4:5" },
-  { id: "story_9x16", label: "Story 9:16" },
-  { id: "tiktok_9x16", label: "TikTok 9:16" },
+  { id: "meta_feed_1x1", label: "Meta feed 1:1", ratio: "1 / 1" },
+  { id: "meta_feed_4x5", label: "Meta feed 4:5", ratio: "4 / 5" },
+  { id: "story_9x16", label: "Story 9:16", ratio: "9 / 16" },
+  { id: "tiktok_9x16", label: "TikTok 9:16", ratio: "9 / 16" },
 ] as const;
 
 const ANGLES = [
-  { id: "offer", label: "Offer" },
-  { id: "problem", label: "Problem" },
-  { id: "proof", label: "Proof" },
-  { id: "demo", label: "Demo" },
+  { id: "offer", label: "Offer", hint: "Lead with the deal" },
+  { id: "problem", label: "Problem", hint: "Name the pain first" },
+  { id: "proof", label: "Proof", hint: "Show why to believe it" },
+  { id: "demo", label: "Demo", hint: "Show the product working" },
 ] as const;
+
+type ProductSummary = { id: string; title: string };
+
+/** A selectable pill: black when on, hairline when off. */
+function ChoicePill({
+  selected,
+  onClick,
+  children,
+  role,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  role: "radio" | "checkbox";
+}) {
+  return (
+    <button
+      type="button"
+      role={role}
+      aria-checked={selected}
+      onClick={onClick}
+      className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-[13px] font-semibold cursor-pointer transition-colors ${
+        selected ? "bg-btn text-btn-ink border-btn" : "bg-card text-ink border-line hover:border-muted"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -39,7 +71,9 @@ function referenceLabel(ref: ReferenceSummary): string {
 
 function referenceStructure(ref: ReferenceSummary): string {
   const s = ref.structure;
-  const parts = s ? [s.hookType, s.offerType, s.layout].filter((p): p is string => Boolean(p)) : [];
+  const parts = s
+    ? [s.hookType, s.offerType, s.layout].filter((p): p is string => Boolean(p)).map((p) => p.replace(/_/g, " "))
+    : [];
   // Honest about what generation will actually get from this reference.
   return parts.length > 0 ? parts.join(" · ") : "No structure extracted yet — copy won't draw on it";
 }
@@ -67,12 +101,14 @@ function placeholderCreative(
 export function StudioView({
   initialReferenceId,
   generationAvailable,
+  creditsPerVariant,
 }: {
   initialReferenceId: string | null;
   generationAvailable: boolean;
+  creditsPerVariant: number;
 }) {
+  const [products, setProducts] = useState<ProductSummary[]>([]);
   const [productId, setProductId] = useState<string | null>(null);
-  const [productTitle, setProductTitle] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [placement, setPlacement] = useState<(typeof PLACEMENTS)[number]["id"]>("meta_feed_1x1");
@@ -94,13 +130,16 @@ export function StudioView({
       const res = await fetch("/api/brand");
       const data = await res.json();
       if (cancelled) return;
-      const product = data.brand?.products?.[0];
-      if (!product) {
+      const list: ProductSummary[] = (data.brand?.products ?? []).map((p: ProductSummary) => ({
+        id: p.id,
+        title: p.title,
+      }));
+      if (list.length === 0) {
         setLoadError("Set up your brand and a product before generating.");
         return;
       }
-      setProductId(product.id);
-      setProductTitle(product.title);
+      setProducts(list);
+      setProductId(list[0].id);
     }
     void loadBrand();
     return () => {
@@ -223,147 +262,192 @@ export function StudioView({
   }
 
   const variantList = order.map((id) => creatives[id]).filter((c): c is CreativeDTO => Boolean(c));
+  const cost = angles.length * creditsPerVariant;
+  const placementInfo = PLACEMENTS.find((p) => p.id === placement)!;
 
   return (
     <div className="vfade">
-      <div className="py-[22px] pb-6">
-        <h1 className="font-display text-2xl font-bold m-0">Studio</h1>
-        <p className="text-[13px] text-[var(--ink-3)] mt-1">
-          Pick a placement and up to four angles, then generate original ad variants.
-        </p>
-      </div>
+      <PageHeader
+        title="Studio"
+        description="Pick a product, a placement and up to four angles. Every variant is pre-flighted the moment it's made."
+        actions={
+          <ButtonLink href="/creatives" variant="outline" size="sm">
+            All creatives
+          </ButtonLink>
+        }
+      />
 
-      {loadError && (
-        <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5 mb-5">
-          {loadError}
-        </div>
-      )}
+      {loadError ? (
+        <Notice tone="error" className="mb-5">
+          {loadError}{" "}
+          <Link href="/brand" className="font-semibold underline underline-offset-4">
+            Set up brand
+          </Link>
+        </Notice>
+      ) : null}
 
-      <Panel className="mb-5">
-        <div className="p-5 flex flex-col gap-4">
-          <div className="text-[13px] text-[var(--ink-2)]">
-            Product: <span className="font-semibold text-[var(--ink)]">{productTitle ?? "—"}</span>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,400px)_1fr] gap-6 items-start">
+        <Panel className="lg:sticky lg:top-6">
+          <div className="p-5 flex flex-col gap-5">
+            <label className="flex flex-col gap-1.5">
+              <FieldLabel>Product</FieldLabel>
+              <select
+                value={productId ?? ""}
+                onChange={(e) => setProductId(e.target.value)}
+                disabled={products.length === 0}
+                className={inputClasses}
+              >
+                {products.length === 0 ? <option value="">No products yet</option> : null}
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-              Reference (optional)
-            </span>
-            {reference ? (
-              <div className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[var(--line-strong)] px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold text-[var(--ink)] truncate">{referenceLabel(reference)}</div>
-                  <div className="text-[11.5px] text-[var(--ink-3)]">{referenceStructure(reference)}</div>
+            <div className="flex flex-col gap-1.5">
+              <FieldLabel>Reference (optional)</FieldLabel>
+              {reference ? (
+                <div className="flex items-center gap-3 rounded-inner border border-line bg-panel px-3.5 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold text-ink truncate">{referenceLabel(reference)}</div>
+                    <div className="text-[12px] text-muted">{referenceStructure(reference)}</div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setReference(null)}>
+                    Clear
+                  </Button>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => setReference(null)}>
-                  Clear
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-3">
-                {myReferences.length > 0 && (
-                  <select
-                    value=""
-                    onChange={(e) => setReference(myReferences.find((r) => r.id === e.target.value) ?? null)}
-                    className="rounded-[12px] border border-[var(--line-strong)] px-3 py-2 text-[13px] outline-none focus:border-[var(--violet)]"
-                  >
-                    <option value="">Pick one of yours…</option>
-                    {myReferences.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {referenceLabel(r)}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <Link href="/discover" className="text-[12.5px] text-[var(--violet-deep)] font-semibold">
-                  Browse Discover or add your own
-                </Link>
-              </div>
-            )}
-            {referenceError && <div className="text-[12.5px] text-[var(--s30)]">{referenceError}</div>}
-          </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {myReferences.length > 0 ? (
+                    <select
+                      value=""
+                      onChange={(e) => setReference(myReferences.find((r) => r.id === e.target.value) ?? null)}
+                      className={inputClasses}
+                    >
+                      <option value="">Pick one of yours…</option>
+                      {myReferences.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {referenceLabel(r)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  <Link href="/discover" className="text-[13px] font-semibold text-ink underline underline-offset-4">
+                    Browse Discover or add your own
+                  </Link>
+                </div>
+              )}
+              {referenceError ? <p className="m-0 text-[12.5px] text-muted">{referenceError}</p> : null}
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-              Placement
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {PLACEMENTS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPlacement(p.id)}
-                  className="font-mono text-[12px] rounded-full px-3.5 py-1.5 border cursor-pointer"
-                  style={
-                    placement === p.id
-                      ? { background: "var(--violet)", color: "#fff", borderColor: "var(--violet)" }
-                      : { background: "var(--card)", color: "var(--ink)", borderColor: "var(--line-strong)" }
-                  }
-                >
-                  {p.label}
-                </button>
+            <div className="flex flex-col gap-2">
+              <FieldLabel>Placement</FieldLabel>
+              <div role="radiogroup" aria-label="Placement" className="flex flex-wrap gap-2">
+                {PLACEMENTS.map((p) => (
+                  <ChoicePill key={p.id} role="radio" selected={placement === p.id} onClick={() => setPlacement(p.id)}>
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-2.5 rounded-[2px] border-[1.5px] border-current"
+                      style={{ aspectRatio: p.ratio }}
+                    />
+                    {p.label}
+                  </ChoicePill>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <FieldLabel>Angles</FieldLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {ANGLES.map((a) => {
+                  const on = angles.includes(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      onClick={() => toggleAngle(a.id)}
+                      className={`text-left rounded-inner border px-3.5 py-2.5 cursor-pointer transition-colors ${
+                        on ? "border-ink bg-panel" : "border-line bg-card hover:border-muted"
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2 text-[13px] font-semibold text-ink">
+                        {a.label}
+                        <span
+                          aria-hidden="true"
+                          className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${
+                            on ? "bg-ink text-bg" : "border border-line"
+                          }`}
+                        >
+                          {on ? "✓" : ""}
+                        </span>
+                      </span>
+                      <span className="block text-[12px] text-muted mt-0.5">{a.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {generateError ? <Notice tone="error">{generateError}</Notice> : null}
+
+            {!generationAvailable ? (
+              <Notice>
+                Generation isn&apos;t available right now: the image provider or copy model isn&apos;t
+                configured. Nothing will be queued or charged.
+              </Notice>
+            ) : null}
+
+            <div className="flex flex-col gap-2 border-t border-line pt-4">
+              <Button
+                onClick={() => void generate()}
+                disabled={!generationAvailable || !productId || angles.length === 0 || generating}
+              >
+                {generating
+                  ? "Generating…"
+                  : `Generate ${angles.length} variant${angles.length === 1 ? "" : "s"}`}
+              </Button>
+              <p className="m-0 text-center text-[12px] text-muted tabular">
+                {cost} credit{cost === 1 ? "" : "s"} · {placementInfo.label}
+              </p>
+            </div>
+          </div>
+        </Panel>
+
+        <section aria-label="Variants" aria-live="polite">
+          {variantList.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {variantList.map((creative) => (
+                <VariantCard
+                  key={creative.id}
+                  creative={creative}
+                  onRegenerate={() => void regenerate(creative)}
+                  regenerating={generating}
+                  regenerateDisabled={!generationAvailable}
+                />
               ))}
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-              Angles
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {ANGLES.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => toggleAngle(a.id)}
-                  className="font-mono text-[12px] rounded-full px-3.5 py-1.5 border cursor-pointer"
-                  style={
-                    angles.includes(a.id)
-                      ? { background: "var(--violet)", color: "#fff", borderColor: "var(--violet)" }
-                      : { background: "var(--card)", color: "var(--ink)", borderColor: "var(--line-strong)" }
-                  }
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {generateError && (
-            <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
-              {generateError}
+          ) : (
+            <div className="rounded-panel border border-line bg-panel dots min-h-[420px] flex flex-col items-center justify-center gap-4 p-8 text-center">
+              <div
+                aria-hidden="true"
+                className="w-[120px] rounded-inner border border-dashed border-line-strong bg-card"
+                style={{ aspectRatio: placementInfo.ratio }}
+              />
+              <div>
+                <div className="font-semibold text-[15px]">Your variants land here</div>
+                <p className="m-0 mt-1 max-w-[360px] text-[13px] text-muted">
+                  Each one is checked for contrast, safe zone, ratio, copy length and policy before you
+                  spend on it.
+                </p>
+              </div>
             </div>
           )}
-
-          {!generationAvailable && (
-            <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
-              Generation isn&apos;t available right now: the image provider or copy model isn&apos;t
-              configured. Nothing will be queued or charged.
-            </div>
-          )}
-
-          <Button
-            onClick={() => void generate()}
-            disabled={!generationAvailable || !productId || angles.length === 0 || generating}
-          >
-            {generating ? "Generating…" : `Generate (${angles.length} variant${angles.length === 1 ? "" : "s"})`}
-          </Button>
-        </div>
-      </Panel>
-
-      {variantList.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {variantList.map((creative) => (
-            <VariantCard
-              key={creative.id}
-              creative={creative}
-              onRegenerate={() => void regenerate(creative)}
-              regenerating={generating}
-              regenerateDisabled={!generationAvailable}
-            />
-          ))}
-        </div>
-      )}
+        </section>
+      </div>
     </div>
   );
 }
@@ -376,6 +460,8 @@ function toDTO(raw: {
   productId: string;
   status: CreativeDTO["status"];
   headline: string | null;
+  primaryText: string | null;
+  cta: string | null;
   compositeUrl: string | null;
   aiGenerated: boolean;
   checks: Array<{ headline: number | null; headlineBasis: unknown; factors: unknown }>;
@@ -388,6 +474,8 @@ function toDTO(raw: {
     productId: raw.productId,
     status: raw.status,
     headline: raw.headline,
+    primaryText: raw.primaryText,
+    cta: raw.cta,
     compositeUrl: raw.compositeUrl,
     aiGenerated: raw.aiGenerated,
     checks: raw.checks.map((c) => ({

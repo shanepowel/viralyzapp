@@ -98,6 +98,17 @@ export async function getReferenceForUser(id: string, userId: string): Promise<R
   });
 }
 
+/**
+ * Deletes one of the user's own references. Official-library references
+ * (no userId) and other users' references are never deletable this way.
+ * Creatives made from it keep existing; their referenceId is set to null.
+ * Returns false when there was nothing of theirs to delete.
+ */
+export async function deleteUserReference(id: string, userId: string): Promise<boolean> {
+  const { count } = await prisma.reference.deleteMany({ where: { id, userId } });
+  return count > 0;
+}
+
 export type ListReferencesFilter = {
   category?: string;
   source?: string;

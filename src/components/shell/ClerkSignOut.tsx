@@ -10,7 +10,7 @@ export function ClerkSignOut() {
       type="button"
       onClick={() => void signOut({ redirectUrl: "/" })}
       title="Sign out"
-      className="ml-auto p-0 border-none bg-transparent cursor-pointer text-[var(--ink)] opacity-40 hover:opacity-80"
+      className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full border-none bg-transparent cursor-pointer text-muted hover:bg-panel hover:text-ink"
       aria-label="Sign out"
     >
       <LogOut className="w-[15px]" strokeWidth={2} />

@@ -1,8 +1,22 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { CheckChip } from "@/components/ui/CheckChip";
+import { FieldLabel, inputClasses } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
+
+// Same rule as compose.ts: only hex colours reach the ad, anything else is ignored there.
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** <input type="color"> only takes #rrggbb. */
+function toSixDigit(c: string): string {
+  if (!HEX.test(c)) return "#000000";
+  return c.length === 4 ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}` : c;
+}
+const MAX_COLORS = 5;
 
 type Draft = {
   name: string;
@@ -148,135 +162,244 @@ export function BrandView() {
     }
   }
 
+  function setColor(i: number, value: string) {
+    setDraft((d) => ({ ...d, colors: d.colors.map((c, j) => (j === i ? value : c)) }));
+  }
+
+  const validColors = draft.colors.filter((c) => HEX.test(c));
+
   if (confirmed) {
     return (
-      <div className="vfade max-w-[560px]">
-        <Panel>
-          <div className="p-6">
-            <h1 className="font-display text-2xl font-bold m-0 mb-2">Brand confirmed</h1>
-            <p className="text-[13px] text-[var(--ink-3)] m-0">
-              {draft.name} is ready. The Studio will use this profile for everything you generate.
-            </p>
+      <div className="vfade max-w-[640px] pt-8">
+        <div className="rounded-panel border border-line bg-panel dots p-8">
+          <CheckChip state="pass" label="Brand confirmed" />
+          <h1 className="font-display text-[28px] sm:text-[34px] m-0 mt-4">{draft.name} is ready</h1>
+          <p className="text-[14px] text-muted m-0 mt-2">
+            The Studio uses this profile for everything you generate. Next, pick a reference or go
+            straight to generating.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <ButtonLink href="/discover">Find a reference</ButtonLink>
+            <ButtonLink href="/studio" variant="outline">
+              Open Studio
+            </ButtonLink>
           </div>
-        </Panel>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="vfade max-w-[560px]">
-      <div className="py-[22px] pb-6">
-        <h1 className="font-display text-2xl font-bold m-0">
-          {editingSaved ? "Your brand" : "Set up your brand"}
-        </h1>
-        <p className="text-[13px] text-[var(--ink-3)] mt-1">
-          {editingSaved
+    <div className="vfade">
+      <PageHeader
+        title={editingSaved ? "Your brand" : "Set up your brand"}
+        description={
+          editingSaved
             ? "This is your saved brand. Edit anything and confirm again to update it."
-            : "Paste your store or product URL, or fill this in yourself. Nothing generates until you confirm it."}
-        </p>
-      </div>
+            : "Paste your store or product URL, or fill this in yourself. Nothing generates until you confirm it."
+        }
+      />
 
-      <Panel className="mb-5">
-        <div className="p-5 flex flex-col gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-            Store or product URL
-          </span>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://your-store.com/products/..."
-              className="flex-1 rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
-            />
-            <Button type="button" onClick={() => void runImport()} disabled={importing || !url.trim()}>
-              {importing ? "Importing…" : "Import"}
-            </Button>
-          </div>
-          {importError && (
-            <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
-              {importError} You can still fill in the details below yourself.
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)] gap-6 items-start">
+        <div className="flex flex-col gap-4">
+          <Panel>
+            <div className="p-5 flex flex-col gap-2">
+              <FieldLabel>Store or product URL</FieldLabel>
+              <div className="flex gap-2">
+                <input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://yourstore.com/products/…"
+                  aria-label="Store or product URL"
+                  className={`${inputClasses} flex-1 min-w-0`}
+                />
+                <Button onClick={() => void runImport()} disabled={importing || !url.trim()}>
+                  {importing ? "Importing…" : "Import"}
+                </Button>
+              </div>
+              {importError && <Notice tone="error">{importError}</Notice>}
             </div>
-          )}
+          </Panel>
+
+          <form onSubmit={onSubmit} className="flex flex-col gap-4">
+            <Panel>
+              <div className="p-5 flex flex-col gap-4">
+                <label className="flex flex-col gap-1.5">
+                  <FieldLabel>Brand name</FieldLabel>
+                  <input
+                    required
+                    value={draft.name}
+                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                    className={inputClasses}
+                  />
+                </label>
+
+                <div className="flex flex-col gap-1.5">
+                  <FieldLabel>Brand colours</FieldLabel>
+                  <p className="m-0 text-[12px] text-muted">
+                    Used for text and buttons on your ads, and checked for contrast on every variant.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {draft.colors.map((c, i) => (
+                      <div key={i} className="flex items-center gap-1.5 rounded-full border border-line bg-card pl-1 pr-1.5 py-1">
+                        <input
+                          type="color"
+                          value={toSixDigit(c)}
+                          onChange={(e) => setColor(i, e.target.value)}
+                          aria-label={`Colour ${i + 1}`}
+                          className="h-7 w-7 cursor-pointer rounded-full border border-line p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-none"
+                        />
+                        <input
+                          value={c}
+                          onChange={(e) => setColor(i, e.target.value)}
+                          aria-label={`Colour ${i + 1} hex`}
+                          className="w-[76px] border-none bg-transparent text-[13px] tabular outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setDraft((d) => ({ ...d, colors: d.colors.filter((_, j) => j !== i) }))}
+                          aria-label={`Remove colour ${i + 1}`}
+                          className="h-6 w-6 rounded-full border-none bg-transparent text-muted cursor-pointer hover:bg-panel hover:text-ink"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {draft.colors.length < MAX_COLORS ? (
+                      <button
+                        type="button"
+                        onClick={() => setDraft((d) => ({ ...d, colors: [...d.colors, "#000000"] }))}
+                        className="min-h-9 rounded-full border border-dashed border-line-strong bg-transparent px-3.5 text-[13px] font-semibold text-ink cursor-pointer hover:border-muted"
+                      >
+                        + Add colour
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <label className="flex flex-col gap-1.5">
+                  <FieldLabel>Brand voice (optional)</FieldLabel>
+                  <input
+                    value={voice}
+                    onChange={(e) => setVoice(e.target.value)}
+                    placeholder="e.g. Warm, direct, a little playful"
+                    className={inputClasses}
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1.5">
+                  <FieldLabel>Logo URL (optional)</FieldLabel>
+                  <input
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="https://…"
+                    className={inputClasses}
+                  />
+                </label>
+              </div>
+            </Panel>
+
+            <Panel title="Product">
+              <div className="p-5 flex flex-col gap-4">
+                <label className="flex flex-col gap-1.5">
+                  <FieldLabel>Product title</FieldLabel>
+                  <input
+                    value={draft.title ?? ""}
+                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                    placeholder={draft.name || "Product name"}
+                    className={inputClasses}
+                  />
+                </label>
+
+                <div className="grid grid-cols-[1fr_110px] gap-3">
+                  <label className="flex flex-col gap-1.5">
+                    <FieldLabel>Price (optional)</FieldLabel>
+                    <input
+                      inputMode="decimal"
+                      value={draft.price ?? ""}
+                      onChange={(e) => setDraft({ ...draft, price: e.target.value || null })}
+                      placeholder="24.00"
+                      className={inputClasses}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <FieldLabel>Currency</FieldLabel>
+                    <input
+                      value={draft.currency ?? ""}
+                      onChange={(e) => setDraft({ ...draft, currency: e.target.value.toUpperCase() || null })}
+                      placeholder="GBP"
+                      maxLength={3}
+                      className={inputClasses}
+                    />
+                  </label>
+                </div>
+
+                <label className="flex flex-col gap-1.5">
+                  <FieldLabel>Product image URL</FieldLabel>
+                  <input
+                    required
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://…"
+                    className={inputClasses}
+                  />
+                </label>
+              </div>
+            </Panel>
+
+            {saveError && <Notice tone="error">{saveError}</Notice>}
+
+            <Button type="submit" disabled={saving || !draft.name}>
+              {saving ? "Saving…" : "Confirm brand"}
+            </Button>
+          </form>
         </div>
-      </Panel>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <Panel>
-          <div className="p-5 flex flex-col gap-4">
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                Brand name
-              </span>
-              <input
-                required
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                Product title
-              </span>
-              <input
-                value={draft.title ?? ""}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                Product image URL
-              </span>
-              <input
-                required
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://…"
-                className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                Brand voice (optional)
-              </span>
-              <input
-                value={voice}
-                onChange={(e) => setVoice(e.target.value)}
-                placeholder="Warm, a little cheeky, no corporate speak"
-                className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-3)]">
-                Logo URL (optional)
-              </span>
-              <input
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://…"
-                className="rounded-[14px] border border-[var(--line-strong)] px-4 py-3 outline-none focus:border-[var(--violet)]"
-              />
-            </label>
+        {/* Live preview of what the Studio will draw on. */}
+        <aside aria-label="Brand preview" className="lg:sticky lg:top-6 rounded-panel border border-line bg-panel dots p-5 sm:p-8">
+          <div className="text-[12px] font-semibold text-muted mb-4">What the Studio will use</div>
+          <div className="rounded-card border border-line bg-card overflow-hidden shadow-float">
+            <div className="aspect-[4/3] bg-panel flex items-center justify-center overflow-hidden">
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              ) : (
+                <span className="text-[12px] text-muted">Product image</span>
+              )}
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="" className="h-8 w-8 rounded-full border border-line object-contain bg-card" />
+                ) : null}
+                <div className="min-w-0">
+                  <div className="font-semibold text-[15px] truncate">{draft.name || "Brand name"}</div>
+                  <div className="text-[13px] text-muted truncate">
+                    {draft.title || "Product"}
+                    {draft.price ? ` · ${draft.currency ?? ""} ${draft.price}`.replace("  ", " ") : ""}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                {validColors.length > 0 ? (
+                  validColors.map((c, i) => (
+                    <span key={i} title={c} className="h-8 flex-1 rounded-[8px] border border-line" style={{ background: c }} />
+                  ))
+                ) : (
+                  <span className="text-[12px] text-muted">No colours yet. Ads fall back to black and white.</span>
+                )}
+              </div>
+              {voice ? <p className="m-0 text-[13px] text-ink">&ldquo;{voice}&rdquo;</p> : null}
+            </div>
           </div>
-        </Panel>
-
-        {saveError && (
-          <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
-            {saveError}
-          </div>
-        )}
-
-        <Button type="submit" className="w-full py-3" disabled={saving}>
-          {saving ? "Confirming…" : "Confirm brand"}
-        </Button>
-      </form>
+        </aside>
+      </div>
     </div>
   );
 }

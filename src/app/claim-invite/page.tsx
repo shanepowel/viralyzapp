@@ -33,8 +33,8 @@ export default function ClaimInvitePage() {
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] flex items-center justify-center px-6 py-16">
       <div className="w-full max-w-[440px]">
-        <div className="font-display font-bold text-[17px]">Viralyz</div>
-        <h1 className="font-display text-[32px] font-bold mt-8 mb-2 tracking-[-0.02em]">
+        <div className="font-display text-[17px]">Viralyz</div>
+        <h1 className="font-display text-[32px] mt-8 mb-2 tracking-[-0.02em]">
           Enter your invite
         </h1>
         <p className="text-[14px] text-[var(--ink-3)] m-0 mb-8">
@@ -51,11 +51,11 @@ export default function ClaimInvitePage() {
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
               placeholder="VLZ…"
-              className="w-full rounded-[14px] border border-[var(--line-strong)] bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-[var(--violet)]"
+              className="w-full rounded-inner border border-line bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-ink"
             />
           </label>
           {error ? (
-            <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
+            <div className="rounded-inner bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
               {error}
             </div>
           ) : null}
@@ -65,7 +65,7 @@ export default function ClaimInvitePage() {
         </form>
         <p className="mt-6 text-[13px] text-[var(--ink-3)]">
           No invite?{" "}
-          <Link href="/waitlist" className="text-[var(--violet-deep)] font-semibold no-underline">
+          <Link href="/waitlist" className="text-ink font-semibold underline underline-offset-4">
             Join the waitlist
           </Link>
         </p>

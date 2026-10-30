@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { ClerkSsoButtons } from "@/components/auth/ClerkSsoButtons";
 import { Button } from "@/components/ui/Button";
+import { inputClasses } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
 
 const STEPS = [
   { n: "01", title: "Discover", body: "Browse real running ads in your category, pulled from ad libraries." },
@@ -135,66 +137,47 @@ export function LoginView({
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-[var(--paper)] text-[var(--ink)]">
-      <section className="relative overflow-hidden border-b lg:border-b-0 lg:border-r border-[var(--line)] px-6 sm:px-10 py-8 sm:py-12 flex flex-col">
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 60% at 10% 0%, rgba(108,76,241,0.12), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 80%, rgba(15,169,104,0.08), transparent 50%), linear-gradient(165deg, #FAFAF7 0%, #F1EFEA 45%, #EFEBFF 100%)",
-          }}
-        />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.35]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(27,24,38,0.06) 1px, transparent 0)",
-            backgroundSize: "22px 22px",
-          }}
-        />
+    <div className="min-h-screen grid lg:grid-cols-[1fr_1fr] bg-bg text-ink">
+      <section className="p-3 sm:p-4 order-2 lg:order-1">
+        <div className="relative h-full overflow-hidden rounded-panel bg-inv text-inv-ink px-6 sm:px-10 py-8 sm:py-12 flex flex-col">
+          <div className="flex flex-col h-full max-w-[540px]">
+            <div className="inline-flex items-center gap-2">
+              <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-inv-ink" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 14 14">
+                  <path d="M2.5 7.5l3 3 6-7" fill="none" stroke="var(--vz-inv)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span className="font-display text-[21px] leading-none">viralyz</span>
+            </div>
 
-        <div className="relative z-10 flex flex-col h-full max-w-[520px]">
-          <div className="flex items-center gap-[9px] font-display font-bold text-[17px]">
-            <span
-              className="w-5 h-5 rounded-full border-[3px] border-[var(--violet)] inline-block"
-              style={{ borderTopColor: "var(--s90)", transform: "rotate(-45deg)" }}
-            />
-            Viralyz
+            <div className="mt-12 sm:mt-16 vfade">
+              <h1 className="font-display text-[38px] sm:text-[52px] m-0">
+                Make the ad. Check it. Then spend on it.
+              </h1>
+              <p className="mt-5 text-[15px] text-inv-muted max-w-[30rem] leading-relaxed">
+                On-brand variants for every placement, each checked for contrast, safe zones, ratio,
+                copy length and policy before you put budget behind it.
+              </p>
+            </div>
+
+            <ol className="mt-10 m-0 p-0 list-none flex flex-col">
+              {STEPS.map((s) => (
+                <li key={s.n} className="flex gap-4 border-t border-inv-line py-3.5">
+                  <span className="text-[13px] text-inv-muted tabular w-6 shrink-0">{s.n}</span>
+                  <div>
+                    <div className="font-semibold text-[14px]">{s.title}</div>
+                    <p className="m-0 mt-0.5 text-[13px] text-inv-muted leading-snug">{s.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <p className="mt-auto pt-8 text-[12px] text-inv-muted">A Digiteq Holdings company · viralyz.com</p>
           </div>
-
-          <div className="mt-10 sm:mt-14 vfade">
-            <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-[var(--violet-deep)] mb-3">
-              Sellers · Ads · Pre-flight
-            </p>
-            <h1 className="font-display text-[34px] sm:text-[42px] font-bold leading-[1.08] m-0 tracking-[-0.02em]">
-              Generate on-brand ad creative, pre-flight it, and see what actually worked.
-            </h1>
-            <p className="mt-4 text-[15px] text-[var(--ink-2)] max-w-[28rem] leading-relaxed">
-              Discover real running ads in your category, confirm your brand once, and generate
-              variants your pre-flight checks have already screened.
-            </p>
-          </div>
-
-          <div className="mt-8 grid grid-cols-2 gap-3">
-            {STEPS.map((s) => (
-              <div
-                key={s.n}
-                className="rounded-[14px] border border-[var(--line)] bg-[var(--card)]/80 backdrop-blur-sm p-3.5 shadow-[var(--shadow)]"
-              >
-                <div className="font-mono text-[10px] text-[var(--ink-3)] mb-1">{s.n}</div>
-                <div className="font-display font-semibold text-[14px]">{s.title}</div>
-                <p className="m-0 mt-1 text-[11.5px] text-[var(--ink-2)] leading-snug">{s.body}</p>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-auto pt-8 text-[10.5px] text-[var(--ink-3)] relative z-10">
-            A Digiteq Holdings company · viralyz.com
-          </p>
         </div>
       </section>
 
-      <section className="flex items-center justify-center px-6 sm:px-10 py-12 sm:py-16">
+      <section className="order-1 lg:order-2 flex items-center justify-center px-6 sm:px-10 py-12 sm:py-16">
         <div className="w-full max-w-[400px] vfade">
           {mode === "signin" || mode === "signup" ? (
             <div className="flex gap-2 p-1 rounded-full bg-[var(--tint)] mb-6">
@@ -209,7 +192,7 @@ export function LoginView({
                   }}
                   className={`flex-1 rounded-full py-2 text-[13px] font-semibold border-none cursor-pointer ${
                     mode === m
-                      ? "bg-[var(--card)] text-[var(--ink)] shadow-[var(--shadow)]"
+                      ? "bg-[var(--card)] text-[var(--ink)] shadow-float"
                       : "bg-transparent text-[var(--ink-3)]"
                   }`}
                 >
@@ -219,13 +202,13 @@ export function LoginView({
             </div>
           ) : null}
 
-          <h2 className="font-display text-[28px] font-bold m-0 tracking-[-0.02em]">
+          <h2 className="font-display text-[32px] m-0">
             {mode === "signin"
               ? "Welcome back"
               : mode === "signup"
                 ? inviteOnly
                   ? "Join the beta"
-                  : "Start scoring free"
+                  : "Get started free"
                 : mode === "reset"
                   ? "Reset password"
                   : "Choose a new password"}
@@ -245,7 +228,7 @@ export function LoginView({
           {clerkEnabled && (mode === "signin" || mode === "signup") ? (
             <div className="mt-6">
               <ClerkSsoButtons inviteOnly={inviteOnly} />
-              <div className="my-4 flex items-center gap-3 text-[11px] text-[var(--ink-3)] font-mono uppercase tracking-[0.08em]">
+              <div className="my-4 flex items-center gap-3 text-[12px] text-muted">
                 <span className="flex-1 h-px bg-[var(--line)]" />
                 or email
                 <span className="flex-1 h-px bg-[var(--line)]" />
@@ -256,23 +239,19 @@ export function LoginView({
           <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
             {mode === "signup" && (
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-[var(--ink-3)]">
-                  Name
-                </span>
+                <span className="text-[12px] font-semibold text-muted">Name</span>
                 <input
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Maya R."
-                  className="w-full rounded-[14px] border border-[var(--line-strong)] bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-[var(--violet)] focus:shadow-[0_0_0_3px_var(--violet-soft)]"
+                  className={inputClasses}
                 />
               </label>
             )}
             {mode !== "set-password" ? (
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-[var(--ink-3)]">
-                  Email
-                </span>
+                <span className="text-[12px] font-semibold text-muted">Email</span>
                 <input
                   type="email"
                   autoComplete="email"
@@ -280,15 +259,13 @@ export function LoginView({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@studio.com"
-                  className="w-full rounded-[14px] border border-[var(--line-strong)] bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-[var(--violet)] focus:shadow-[0_0_0_3px_var(--violet-soft)]"
+                  className={inputClasses}
                 />
               </label>
             ) : null}
             {mode !== "reset" ? (
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-[var(--ink-3)]">
-                  Password
-                </span>
+                <span className="text-[12px] font-semibold text-muted">Password</span>
                 <input
                   type="password"
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
@@ -297,37 +274,33 @@ export function LoginView({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-[14px] border border-[var(--line-strong)] bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-[var(--violet)] focus:shadow-[0_0_0_3px_var(--violet-soft)]"
+                  className={inputClasses}
                 />
               </label>
             ) : null}
             {mode === "signup" && inviteOnly ? (
               <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-[var(--ink-3)]">
-                  Invite code
-                </span>
+                <span className="text-[12px] font-semibold text-muted">Invite code</span>
                 <input
                   required
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   placeholder="VLZ…"
-                  className="w-full rounded-[14px] border border-[var(--line-strong)] bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-[var(--violet)] focus:shadow-[0_0_0_3px_var(--violet-soft)]"
+                  className={inputClasses}
                 />
               </label>
             ) : null}
 
             {error && (
-              <div className="rounded-[10px] bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
-                {error}
-              </div>
+              <Notice tone="error">{error}</Notice>
             )}
             {notice && (
-              <div className="rounded-[10px] bg-[var(--s90-soft)] text-[var(--ink-2)] text-[12.5px] px-3.5 py-2.5 break-all">
-                {notice}
-              </div>
+              <Notice>
+                <span className="break-all">{notice}</span>
+              </Notice>
             )}
 
-            <Button type="submit" className="w-full py-3 text-[14px]" disabled={pending}>
+            <Button type="submit" className="w-full" disabled={pending}>
               {pending
                 ? "Please wait…"
                 : mode === "signin"
@@ -344,7 +317,7 @@ export function LoginView({
             {mode === "signin" ? (
               <button
                 type="button"
-                className="border-none bg-transparent p-0 cursor-pointer text-[var(--violet-deep)] font-semibold"
+                className="border-none bg-transparent p-0 cursor-pointer text-ink font-semibold underline underline-offset-4"
                 onClick={() => {
                   setMode("reset");
                   setError(null);
@@ -356,7 +329,7 @@ export function LoginView({
             ) : (
               <button
                 type="button"
-                className="border-none bg-transparent p-0 cursor-pointer text-[var(--violet-deep)] font-semibold"
+                className="border-none bg-transparent p-0 cursor-pointer text-ink font-semibold underline underline-offset-4"
                 onClick={() => {
                   setMode("signin");
                   setError(null);
@@ -367,7 +340,7 @@ export function LoginView({
               </button>
             )}
             {inviteOnly ? (
-              <Link href="/waitlist" className="text-[var(--violet-deep)] font-semibold no-underline">
+              <Link href="/waitlist" className="text-ink font-semibold underline underline-offset-4">
                 Join the waitlist
               </Link>
             ) : null}
@@ -375,7 +348,7 @@ export function LoginView({
 
           {demoEnabled && (mode === "signin" || mode === "signup") ? (
             <>
-              <div className="my-6 flex items-center gap-3 text-[11px] text-[var(--ink-3)] font-mono uppercase tracking-[0.08em]">
+              <div className="my-6 flex items-center gap-3 text-[12px] text-muted">
                 <span className="flex-1 h-px bg-[var(--line)]" />
                 or
                 <span className="flex-1 h-px bg-[var(--line)]" />
@@ -384,7 +357,7 @@ export function LoginView({
               {/* No credentials in the client bundle — the server resolves the demo account. */}
               <Button
                 variant="outline"
-                className="w-full py-3"
+                className="w-full"
                 disabled={pending}
                 onClick={() => void login({ demo: true })}
               >
