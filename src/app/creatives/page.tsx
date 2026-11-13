@@ -2,13 +2,15 @@ import { AppPage } from "@/components/shell/AppPage";
 import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CreativesView } from "@/components/creatives/CreativesView";
-import type { CreativeDTO } from "@/components/studio/VariantCard";
+import { toCreativeDTO, type CreativeDTO } from "@/components/studio/proof";
+import { creditPricePerVariant } from "@/lib/env";
 import { continueOpenCreativesForUser, generationAvailable } from "@/lib/generation";
 import { scheduleCreative } from "@/lib/schedule-creative";
 import { prisma } from "@/lib/prisma";
 import { resolveAppUser } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Creatives" };
 
 export default async function CreativesPage() {
   const user = await resolveAppUser();
@@ -23,34 +25,21 @@ export default async function CreativesPage() {
       })
     : [];
 
-  const initialCreatives: CreativeDTO[] = creatives.map((c) => ({
-    id: c.id,
-    tag: c.tag,
-    angle: c.angle,
-    placement: c.placement,
-    productId: c.productId,
-    referenceId: c.referenceId,
-    status: c.status as CreativeDTO["status"],
-    headline: c.headline,
-    primaryText: c.primaryText,
-    cta: c.cta,
-    compositeUrl: c.compositeUrl,
-    aiGenerated: c.aiGenerated,
-    checks: c.checks.map((check) => ({
-      headline: check.headline,
-      headlineBasis: check.headlineBasis as { counted: number; total: number },
-      factors: check.factors as CreativeDTO["checks"][number]["factors"],
-    })),
-  }));
+  const initialCreatives: CreativeDTO[] = creatives.map(toCreativeDTO);
 
   return (
     <AppPage>
       <PageHeader
-        title="Creatives"
-        description="Everything you've generated, with its latest pre-flight result. Put each tag in the ad name so Results can match spend back to it."
-        actions={<ButtonLink href="/studio">New creative</ButtonLink>}
+        kicker="Creatives"
+        title="Every proof, with its check"
+        description="Open one to read its marks. Put its tag in the ad name so Results can match spend back to it."
+        actions={<ButtonLink href="/studio?new=1">New batch</ButtonLink>}
       />
-      <CreativesView initialCreatives={initialCreatives} generationAvailable={generationAvailable()} />
+      <CreativesView
+        initialCreatives={initialCreatives}
+        generationAvailable={generationAvailable()}
+        creditsPerVariant={creditPricePerVariant()}
+      />
     </AppPage>
   );
 }

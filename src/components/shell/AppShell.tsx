@@ -2,18 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
-import {
-  BarChart3,
-  Compass,
-  Image as ImageIcon,
-  LogOut,
-  Palette,
-  Settings,
-  Sparkles,
-  Wallet,
-} from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ClerkSignOut } from "@/components/shell/ClerkSignOut";
+import { buttonClasses } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
@@ -27,23 +18,19 @@ type Props = {
   clerkEnabled?: boolean;
 };
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: typeof Compass;
-  group: string | null;
-};
+type NavItem = { href: string; label: string };
 
-const nav: NavItem[] = [
-  { href: "/discover", label: "Discover", icon: Compass, group: null },
-  { href: "/brand", label: "Brand", icon: Palette, group: null },
-  { href: "/studio", label: "Studio", icon: Sparkles, group: null },
-  { href: "/creatives", label: "Creatives", icon: ImageIcon, group: null },
-  { href: "/results", label: "Results", icon: BarChart3, group: null },
-  { href: "/account", label: "Account", icon: Wallet, group: null },
+/** The work, in the order it happens. Studio is home. */
+const primary: NavItem[] = [
+  { href: "/studio", label: "Studio" },
+  { href: "/creatives", label: "Creatives" },
+  { href: "/discover", label: "Discover" },
+  { href: "/brand", label: "Brand" },
+  { href: "/results", label: "Results" },
 ];
 
-const adminItem: NavItem = { href: "/admin", label: "Admin", icon: Settings, group: null };
+const account: NavItem = { href: "/account", label: "Account" };
+const admin: NavItem = { href: "/admin", label: "Admin" };
 
 function initials(name: string) {
   return name
@@ -66,6 +53,29 @@ export function AppShell({
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the user menu on outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen && !moreOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setMoreOpen(false);
+      }
+    }
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [menuOpen, moreOpen]);
 
   async function signOut() {
     await fetch("/api/logout", { method: "POST" });
@@ -82,145 +92,217 @@ export function AppShell({
     router.refresh();
   }
 
-  const creditLabel = plan === "unlimited" ? "Unlimited credits" : `${balance ?? 0} credits`;
-  const items = isAdmin ? [...nav, adminItem] : nav;
+  const unlimited = plan === "unlimited";
+  const creditCount = unlimited ? "Unlimited" : String(balance ?? 0);
+  const creditLabel = unlimited ? "Unlimited credits" : `${balance ?? 0} credits`;
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const secondary = isAdmin ? [account, admin] : [account];
+  const moreActive = isActive("/results") || isActive("/account") || isActive("/admin");
 
-  const signOutButton = clerkEnabled ? (
+  const signOutControl = clerkEnabled ? (
     <ClerkSignOut />
   ) : (
     <button
       type="button"
       onClick={() => void signOut()}
-      title="Sign out"
-      className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full border-none bg-transparent cursor-pointer text-muted hover:bg-panel hover:text-ink"
-      aria-label="Sign out"
+      className="min-h-11 w-full cursor-pointer border-0 bg-transparent px-0 text-left text-[14px] font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
     >
-      <LogOut className="w-[15px]" strokeWidth={2} />
+      Sign out
     </button>
   );
 
+  const link = (item: NavItem) => {
+    const active = isActive(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={`nav-item relative inline-flex h-14 items-center px-0.5 text-[14px] ${
+          active
+            ? "font-semibold text-ink after:absolute after:inset-x-0 after:bottom-[-1px] after:h-[3px] after:bg-ink"
+            : "font-medium text-muted"
+        }`}
+      >
+        {item.label}
+      </Link>
+    );
+  };
+
   return (
-    <div className="md:grid md:grid-cols-[248px_1fr] min-h-screen bg-bg text-ink">
-      {/* Mobile: a top bar and a scrolling row of sections. */}
-      <header className="md:hidden sticky top-0 z-20 border-b border-line bg-bg/95 backdrop-blur">
-        <div className="flex items-center justify-between gap-3 px-4 h-14">
-          <Link href="/discover" aria-label="Viralyz home">
+    <div className="min-h-screen bg-bg text-ink">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:bg-ink focus:px-3 focus:py-2 focus:text-bg"
+      >
+        Skip to content
+      </a>
+
+      <header className="sticky top-0 z-30 border-b border-rule bg-bg">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-6 px-4 md:px-8">
+          <Link href="/studio" aria-label="Viralyz, go to Studio" className="shrink-0">
             <Logo />
           </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] text-muted tabular">{creditLabel}</span>
+
+          <nav aria-label="Sections" className="hidden items-center gap-6 md:flex">
+            {primary.map(link)}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-4 md:gap-5">
             <Link
-              href="/studio"
-              className="btn-primary inline-flex min-h-9 items-center rounded-full bg-btn px-3.5 text-[13px] font-semibold text-btn-ink"
+              href="/account"
+              className="nav-item font-mono text-[12px] text-muted"
+              aria-label={`${creditLabel}. Open account`}
             >
-              New
+              <span className="font-medium text-ink">{creditCount}</span>
+              {unlimited ? null : <span className="hidden sm:inline"> credits</span>}
+              {unlimited ? null : <span className="sm:hidden"> cr</span>}
             </Link>
+            <Link href="/studio?new=1" className={buttonClasses("primary", "sm")}>
+              New batch
+            </Link>
+            <nav aria-label="Account" className="hidden items-center gap-5 md:flex">
+              {secondary.map(link)}
+            </nav>
+            <div ref={menuRef} className="relative hidden md:block">
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={`${userName}: theme and sign out`}
+                onClick={() => setMenuOpen((v) => !v)}
+                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center border border-rule bg-transparent font-mono text-[12px] font-medium text-ink hover:bg-panel"
+              >
+                {initials(userName)}
+              </button>
+              {menuOpen ? (
+                <div
+                  role="menu"
+                  className="vfade absolute right-0 top-[calc(100%+8px)] z-40 w-[280px] border border-rule bg-card p-4 shadow-float"
+                >
+                  <p className="kicker m-0">Signed in as</p>
+                  <p className="m-0 mt-1 truncate text-[15px] font-semibold">{userName}</p>
+                  <p className="m-0 mt-0.5 font-mono text-[12px] text-muted">{creditLabel}</p>
+                  <div className="mt-4 border-t border-line pt-3">
+                    <p className="kicker m-0 mb-2">Theme</p>
+                    <ThemeToggle />
+                  </div>
+                  <div className="mt-3 border-t border-line pt-1">{signOutControl}</div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
-        <nav aria-label="Sections" className="flex gap-1 overflow-x-auto px-3 pb-2.5 [scrollbar-width:none]">
-          {items.map((item) => (
+      </header>
+
+      <main id="main" className="mx-auto w-full max-w-[1440px] px-4 pb-28 md:px-8 md:pb-16">
+        {showOnboarding ? (
+          <section aria-label="Getting started" className="mt-6 border-y border-rule py-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="kicker m-0">First run</p>
+                <p className="font-display m-0 mt-1.5 text-[22px]">Three steps to ads that are checked before you spend.</p>
+                <ol className="m-0 mt-3 grid list-none gap-x-6 gap-y-1 p-0 text-[13px] text-ink-2 sm:grid-cols-3">
+                  <li>
+                    <span className="font-mono text-muted">1 </span>Confirm your colours, logo and voice
+                  </li>
+                  <li>
+                    <span className="font-mono text-muted">2 </span>Pick a reference in Discover
+                  </li>
+                  <li>
+                    <span className="font-mono text-muted">3 </span>Make a batch and clear its marks
+                  </li>
+                </ol>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Link href="/brand" className={buttonClasses("primary", "sm")}>
+                  Set up brand
+                </Link>
+                <button type="button" onClick={() => void dismissOnboarding()} className={buttonClasses("outline", "sm")}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+        {children}
+      </main>
+
+      {/* Mobile: a bottom tab bar, with the less-used sections behind More. */}
+      <nav
+        aria-label="Sections"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-rule bg-bg pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        {primary.slice(0, 4).map((item) => {
+          const active = isActive(item.href);
+          return (
             <Link
               key={item.href}
               href={item.href}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              className={`nav-item shrink-0 rounded-full px-3.5 py-1.5 text-[13px] ${
-                isActive(item.href) ? "bg-btn text-btn-ink font-semibold" : "text-muted font-medium"
+              aria-current={active ? "page" : undefined}
+              className={`relative flex h-14 items-center justify-center text-[12px] ${
+                active
+                  ? "font-semibold text-ink before:absolute before:inset-x-3 before:top-[-1px] before:h-[3px] before:bg-ink"
+                  : "font-medium text-muted"
               }`}
             >
               {item.label}
             </Link>
-          ))}
-        </nav>
-      </header>
+          );
+        })}
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen(true)}
+          className={`relative flex h-14 cursor-pointer items-center justify-center border-0 bg-transparent text-[12px] ${
+            moreActive
+              ? "font-semibold text-ink before:absolute before:inset-x-3 before:top-[-1px] before:h-[3px] before:bg-ink"
+              : "font-medium text-muted"
+          }`}
+        >
+          More
+        </button>
+      </nav>
 
-      <aside className="hidden md:flex bg-bg border-r border-line px-4 py-5 flex-col gap-1 sticky top-0 h-screen overflow-y-auto">
-        <Link href="/discover" aria-label="Viralyz home" className="px-2.5 pb-5 pt-1">
-          <Logo />
-        </Link>
-
-        <div className="mb-5">
-          <Link
-            href="/studio"
-            className="btn-primary flex w-full min-h-11 items-center justify-center gap-2 font-semibold text-[14px] rounded-full bg-btn text-btn-ink"
-          >
-            <Sparkles className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
-            New creative
-          </Link>
-          <p className="m-0 mt-2 text-[12px] text-muted text-center tabular">{creditLabel}</p>
-        </div>
-
-        <nav aria-label="Sections" className="flex flex-col gap-0.5">
-          {items.map((item) => {
-            const active = isActive(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`nav-item flex items-center gap-3 px-3 min-h-10 rounded-full text-[14px] ${
-                  item.href === "/admin" ? "mt-3" : ""
-                } ${active ? "bg-panel text-ink font-semibold" : "text-muted font-medium"}`}
-              >
-                <Icon className="w-[17px] h-[17px] shrink-0" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="mt-auto pt-4 border-t border-line flex flex-col gap-3">
-          <div className="flex items-center gap-2.5 px-1">
-            <div
-              className="w-[34px] h-[34px] shrink-0 rounded-full flex items-center justify-center bg-ink text-bg font-semibold text-[12px]"
-              aria-hidden="true"
-            >
-              {initials(userName)}
+      {moreOpen ? (
+        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="More">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setMoreOpen(false)}
+            className="absolute inset-0 cursor-default border-0 bg-scrim"
+          />
+          <div className="vfade absolute inset-x-0 bottom-0 border-t border-rule bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4">
+            <div className="flex items-baseline justify-between">
+              <p className="m-0 truncate text-[15px] font-semibold">{userName}</p>
+              <p className="m-0 font-mono text-[12px] text-muted">{creditLabel}</p>
             </div>
-            <div className="min-w-0">
-              <div className="font-semibold text-[13px] leading-tight truncate">{userName}</div>
-              <div className="text-[12px] text-muted mt-[2px] tabular">{creditLabel}</div>
+            <ul className="m-0 mt-3 list-none border-t border-rule p-0">
+              {[primary[4], ...secondary].map((item) => (
+                <li key={item.href} className="border-b border-line">
+                  <Link
+                    href={item.href}
+                    onClick={() => setMoreOpen(false)}
+                    aria-current={isActive(item.href) ? "page" : undefined}
+                    className="flex min-h-12 items-center justify-between text-[15px] font-medium"
+                  >
+                    {item.label}
+                    <span aria-hidden="true" className="font-mono text-muted">
+                      →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4">
+              <p className="kicker m-0 mb-2">Theme</p>
+              <ThemeToggle />
             </div>
-            {signOutButton}
-          </div>
-          <div className="flex items-center justify-between gap-2 px-1">
-            <span className="text-[11px] text-muted">Digiteq Holdings</span>
-            <ThemeToggle />
+            <div className="mt-2">{signOutControl}</div>
           </div>
         </div>
-      </aside>
-
-      <main className="px-4 md:px-10 pb-16 max-w-[1240px] w-full">
-        {showOnboarding ? (
-          <div className="mt-6 rounded-card border border-line bg-panel dots px-5 py-5 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex-1">
-              <div className="font-semibold text-[15px]">Welcome. Start with your brand.</div>
-              <ol className="m-0 mt-2 p-0 list-none flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-muted">
-                <li>01 · Confirm colours, logo and voice</li>
-                <li>02 · Pick a reference in Discover</li>
-                <li>03 · Generate and pre-flight in Studio</li>
-              </ol>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <Link
-                href="/brand"
-                className="btn-primary inline-flex min-h-10 items-center justify-center rounded-full bg-btn text-btn-ink text-[13px] font-semibold px-4"
-              >
-                Set up brand
-              </Link>
-              <button
-                type="button"
-                onClick={() => void dismissOnboarding()}
-                className="btn-outline min-h-10 rounded-full border border-line bg-card text-ink text-[13px] px-4 cursor-pointer"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        ) : null}
-        {children}
-      </main>
+      ) : null}
     </div>
   );
 }

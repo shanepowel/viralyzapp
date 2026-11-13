@@ -15,5 +15,5 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  redirect("/discover");
+  redirect("/studio");
 }

@@ -2,6 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { inputClasses } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type Invite = {
   id: string;
@@ -48,7 +51,7 @@ type Props = {
 function creativeSummary(counts: CreativeCounts): string {
   const total = counts.pending + counts.generating + counts.ready + counts.failed;
   if (total === 0) return "None";
-  return `${counts.ready} ready · ${counts.pending + counts.generating} open · ${counts.failed} failed`;
+  return `${counts.ready} ready / ${counts.pending + counts.generating} open / ${counts.failed} failed`;
 }
 
 function roleLabel(role: string): string {
@@ -125,7 +128,7 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
     }
     setNotice(
       action === "approve" && data.code
-        ? `Approved — invite ${data.code}`
+        ? `Approved. Invite code ${data.code}`
         : `Marked ${action}`,
     );
     await refresh();
@@ -148,7 +151,7 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
       setError(data.error ?? "Failed to update credits");
       return;
     }
-    setNotice(`Updated ${data.user.email} → ${data.user.balance} credits`);
+    setNotice(`${data.user.email} now has ${data.user.balance} credits.`);
     await refresh();
   }
 
@@ -170,47 +173,41 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
   }
 
   return (
-    <div className="pt-8 pb-16">
-      <p className="text-[12px] font-semibold text-muted m-0">
-        Admin
-      </p>
-      <h1 className="font-display text-[32px] mt-2 mb-2 tracking-[-0.02em]">
-        Admin
-      </h1>
-      <p className="text-[14px] text-[var(--ink-3)] m-0 mb-6">
-        One place for accounts, invites, the waitlist, and credits. Counts only — ad copy, files, and results stay on the account that owns them.
-      </p>
+    <div className="vfade pb-16">
+      <PageHeader
+        kicker="Admin"
+        title="Accounts, invites and credits"
+        description="Counts only. Ad copy, files and results stay with the account that owns them."
+      />
 
       {error ? (
-        <div className="mb-4 rounded-inner bg-[var(--s30-soft)] text-[var(--s30)] text-[13px] px-3.5 py-2.5">
+        <Notice tone="error" className="mb-4">
           {error}
-        </div>
+        </Notice>
       ) : null}
       {notice ? (
-        <div className="mb-4 rounded-inner bg-[var(--s90-soft)] text-[var(--ink-2)] text-[13px] px-3.5 py-2.5 break-all">
-          {notice}
-        </div>
+        <Notice className="mb-4 break-all">{notice}</Notice>
       ) : null}
 
-      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
-        <h2 className="font-display text-[18px] m-0 mb-3">Accounts</h2>
+      <section className="mb-10 border-t border-rule pt-4">
+        <h2 className="font-display m-0 mb-3 text-[22px]">Accounts</h2>
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px] text-left">
-            <thead className="font-mono text-[10px] uppercase text-[var(--ink-3)]">
+          <table className="w-full border-collapse text-left text-[14px]">
+            <thead className="kicker border-b border-rule">
               <tr>
-                <th className="py-2 pr-3">Account</th>
-                <th className="py-2 pr-3">Role</th>
-                <th className="py-2 pr-3">Credits</th>
-                <th className="py-2 pr-3">Creatives</th>
-                <th className="py-2 pr-3">Last activity</th>
+                <th className="py-2 pr-4 font-medium">Account</th>
+                <th className="py-2 pr-4 font-medium">Role</th>
+                <th className="py-2 pr-4 font-medium">Credits</th>
+                <th className="py-2 pr-4 font-medium">Creatives</th>
+                <th className="py-2 pr-4 font-medium">Last activity</th>
               </tr>
             </thead>
             <tbody>
               {accounts.map((account) => (
-                <tr key={account.id} className="border-t border-[var(--line)]">
+                <tr key={account.id} className="border-b border-line align-top hover:bg-panel">
                   <td className="py-2 pr-3">
                     <div>{account.name}</div>
-                    <div className="text-[11px] text-[var(--ink-3)]">{account.email}</div>
+                    <div className="font-mono text-[11px] text-muted">{account.email}</div>
                   </td>
                   <td className="py-2 pr-3">
                     {viewerRole === "superadmin" && account.role !== "superadmin" ? (
@@ -221,7 +218,7 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
                           const next = e.target.value === "admin" ? "admin" : "user";
                           void setRole(account.email, next);
                         }}
-                        className="rounded-inner border border-line px-2 py-1 text-[13px] bg-transparent"
+                        className="min-h-9 rounded-inner border border-rule bg-card px-2 text-[13px]"
                       >
                         <option value="user">Seller</option>
                         <option value="admin">Admin</option>
@@ -234,13 +231,13 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
                   <td className="py-2 pr-3">
                     {creativeSummary(account.creatives)}
                     {account.brandCount > 0 ? (
-                      <div className="text-[11px] text-[var(--ink-3)]">Brand saved</div>
+                      <div className="font-mono text-[11px] text-muted">Brand saved</div>
                     ) : null}
                   </td>
-                  <td className="py-2 pr-3 text-[12px] text-[var(--ink-3)]">
+                  <td className="py-2 pr-3 font-mono text-[12px] text-muted">
                     {account.lastCreativeAt
                       ? new Date(account.lastCreativeAt).toLocaleDateString("en-GB")
-                      : "—"}
+                      : "n/a"}
                   </td>
                 </tr>
               ))}
@@ -249,46 +246,46 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
         </div>
       </section>
 
-      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
-        <h2 className="font-display text-[18px] m-0 mb-3">Create invites</h2>
+      <section className="mb-10 border-t border-rule pt-4">
+        <h2 className="font-display m-0 mb-3 text-[22px]">Create invites</h2>
         <form onSubmit={createInvites} className="flex flex-col sm:flex-row gap-3 items-end">
           <label className="flex flex-col gap-1 flex-1 w-full">
-            <span className="font-mono text-[10px] uppercase text-[var(--ink-3)]">Email (optional)</span>
+            <span className="kicker">Email, optional</span>
             <input
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="creator@studio.com"
-              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
+              placeholder="seller@shop.com"
+              className={inputClasses}
             />
           </label>
           <label className="flex flex-col gap-1 w-28">
-            <span className="font-mono text-[10px] uppercase text-[var(--ink-3)]">Count</span>
+            <span className="kicker">Count</span>
             <input
               type="number"
               min={1}
               max={50}
               value={inviteCount}
               onChange={(e) => setInviteCount(Number(e.target.value))}
-              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
+              className={inputClasses}
             />
           </label>
-          <Button type="submit">Generate</Button>
+          <Button type="submit">Create invites</Button>
         </form>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-[13px] text-left">
-            <thead className="font-mono text-[10px] uppercase text-[var(--ink-3)]">
+          <table className="w-full border-collapse text-left text-[14px]">
+            <thead className="kicker border-b border-rule">
               <tr>
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Email</th>
-                <th className="py-2 pr-3">Uses</th>
+                <th className="py-2 pr-4 font-medium">Code</th>
+                <th className="py-2 pr-4 font-medium">Email</th>
+                <th className="py-2 pr-4 font-medium">Uses</th>
               </tr>
             </thead>
             <tbody>
               {invites.slice(0, 20).map((inv) => (
-                <tr key={inv.id} className="border-t border-[var(--line)]">
+                <tr key={inv.id} className="border-b border-line align-top hover:bg-panel">
                   <td className="py-2 pr-3 font-mono">{inv.code}</td>
-                  <td className="py-2 pr-3">{inv.email ?? "—"}</td>
+                  <td className="py-2 pr-3">{inv.email ?? "n/a"}</td>
                   <td className="py-2 pr-3">
                     {inv.usedCount}/{inv.maxUses}
                   </td>
@@ -299,24 +296,24 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
         </div>
       </section>
 
-      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
-        <h2 className="font-display text-[18px] m-0 mb-3">Waitlist</h2>
+      <section className="mb-10 border-t border-rule pt-4">
+        <h2 className="font-display m-0 mb-3 text-[22px]">Waitlist</h2>
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px] text-left">
-            <thead className="font-mono text-[10px] uppercase text-[var(--ink-3)]">
+          <table className="w-full border-collapse text-left text-[14px]">
+            <thead className="kicker border-b border-rule">
               <tr>
-                <th className="py-2 pr-3">Email</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2 pr-3">Actions</th>
+                <th className="py-2 pr-4 font-medium">Email</th>
+                <th className="py-2 pr-4 font-medium">Status</th>
+                <th className="py-2 pr-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {waitlist.map((entry) => (
-                <tr key={entry.id} className="border-t border-[var(--line)]">
+                <tr key={entry.id} className="border-b border-line align-top hover:bg-panel">
                   <td className="py-2 pr-3">
                     <div>{entry.email}</div>
                     {entry.name ? (
-                      <div className="text-[11px] text-[var(--ink-3)]">{entry.name}</div>
+                      <div className="font-mono text-[11px] text-muted">{entry.name}</div>
                     ) : null}
                   </td>
                   <td className="py-2 pr-3">
@@ -327,24 +324,24 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
                   </td>
                   <td className="py-2 pr-3">
                     {entry.status === "pending" ? (
-                      <div className="flex gap-2">
+                      <div className="flex gap-4">
                         <button
                           type="button"
-                          className="text-ink font-semibold underline underline-offset-4 border-none bg-transparent cursor-pointer p-0"
+                          className="min-h-9 cursor-pointer border-0 bg-transparent p-0 font-semibold text-ink underline underline-offset-4"
                           onClick={() => void waitlistAction(entry.id, "approve")}
                         >
                           Approve
                         </button>
                         <button
                           type="button"
-                          className="text-[var(--ink-3)] font-semibold border-none bg-transparent cursor-pointer p-0"
+                          className="min-h-9 cursor-pointer border-0 bg-transparent p-0 font-semibold text-mark underline underline-offset-4"
                           onClick={() => void waitlistAction(entry.id, "reject")}
                         >
                           Reject
                         </button>
                       </div>
                     ) : (
-                      "—"
+                      "n/a"
                     )}
                   </td>
                 </tr>
@@ -354,26 +351,26 @@ export function AdminView({ viewerRole, initialInvites, initialWaitlist, initial
         </div>
       </section>
 
-      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 shadow-[var(--shadow)]">
-        <h2 className="font-display text-[18px] m-0 mb-3">Credits</h2>
+      <section className="border-t border-rule pt-4">
+        <h2 className="font-display m-0 mb-3 text-[22px]">Credits</h2>
         <form onSubmit={setCredits} className="flex flex-col sm:flex-row gap-3 items-end mb-4">
           <label className="flex flex-col gap-1 flex-1 w-full">
-            <span className="font-mono text-[10px] uppercase text-[var(--ink-3)]">User email</span>
+            <span className="kicker">Account email</span>
             <input
               type="email"
               required
               value={creditEmail}
               onChange={(e) => setCreditEmail(e.target.value)}
-              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
+              className={inputClasses}
             />
           </label>
           <label className="flex flex-col gap-1 w-28">
-            <span className="font-mono text-[10px] uppercase text-[var(--ink-3)]">Delta</span>
+            <span className="kicker">Add or remove</span>
             <input
               type="number"
               value={creditDelta}
               onChange={(e) => setCreditDelta(Number(e.target.value))}
-              className="rounded-inner border border-line px-3 py-2.5 text-[14px]"
+              className={inputClasses}
             />
           </label>
           <Button type="submit">Adjust credits</Button>

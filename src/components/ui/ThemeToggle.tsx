@@ -1,32 +1,26 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 const OPTIONS = [
-  { value: "light", label: "Light theme", icon: Sun },
-  { value: "dark", label: "Dark theme", icon: Moon },
-  { value: "system", label: "Match system theme", icon: Monitor },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "Match device" },
 ] as const;
 
-/** Light / dark / system, the same control as the marketing site footer. */
+/** Light / Dark / Match device, as a segmented control with words rather than icons. */
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   // Theme is only known on the client; render unselected until then.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
-  const current = mounted ? (theme ?? "system") : null;
+  const current = mounted ? (theme ?? "light") : null;
 
   return (
-    <div
-      role="radiogroup"
-      aria-label="Colour theme"
-      className={`inline-flex items-center gap-0.5 rounded-full border border-line p-0.5 ${className}`}
-    >
-      {OPTIONS.map((opt) => {
-        const Icon = opt.icon;
+    <div role="radiogroup" aria-label="Colour theme" className={`inline-flex border border-rule ${className}`}>
+      {OPTIONS.map((opt, i) => {
         const checked = current === opt.value;
         return (
           <button
@@ -34,13 +28,12 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
             type="button"
             role="radio"
             aria-checked={checked}
-            aria-label={opt.label}
             onClick={() => setTheme(opt.value)}
-            className={`inline-flex h-8 w-8 items-center justify-center rounded-full border-none cursor-pointer transition-colors ${
-              checked ? "bg-panel text-ink" : "bg-transparent text-muted hover:text-ink"
+            className={`min-h-9 cursor-pointer border-0 px-3 text-[13px] font-medium ${i > 0 ? "border-l border-rule" : ""} ${
+              checked ? "bg-ink text-bg" : "bg-transparent text-ink hover:bg-panel"
             }`}
           >
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+            {opt.label}
           </button>
         );
       })}

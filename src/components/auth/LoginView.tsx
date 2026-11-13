@@ -5,14 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { ClerkSsoButtons } from "@/components/auth/ClerkSsoButtons";
 import { Button } from "@/components/ui/Button";
-import { inputClasses } from "@/components/ui/Field";
+import { FieldLabel, inputClasses } from "@/components/ui/Field";
+import { Logo } from "@/components/ui/Logo";
 import { Notice } from "@/components/ui/Notice";
 
 const STEPS = [
-  { n: "01", title: "Discover", body: "Browse real running ads in your category, pulled from ad libraries." },
-  { n: "02", title: "Brand", body: "Confirm your colors, logo, and voice once — every ad reuses them." },
-  { n: "03", title: "Studio", body: "Generate on-brand variants against a reference angle in minutes." },
-  { n: "04", title: "Results", body: "Import real spend data and see which pre-flight checks actually predicted it." },
+  { n: "1", title: "Brand", body: "Confirm your colours, logo and voice once. Every ad reuses them." },
+  { n: "2", title: "Studio", body: "Make a batch across placements and angles. Each ad is checked as it lands." },
+  { n: "3", title: "Marks", body: "Anything that must change is marked in red on the proof, with the reason." },
+  { n: "4", title: "Results", body: "Import real spend and see whether the checks held up." },
 ] as const;
 
 type Mode = "signin" | "signup" | "reset" | "set-password";
@@ -30,7 +31,7 @@ export function LoginView({
 }: Props) {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || "/discover";
+  const next = search.get("next") || "/studio";
   const resetToken = search.get("reset") ?? "";
   const inviteFromUrl = search.get("invite") ?? "";
   const [mode, setMode] = useState<Mode>(() => {
@@ -136,64 +137,73 @@ export function LoginView({
     else void confirmReset();
   }
 
+  const heading =
+    mode === "signin"
+      ? "Sign in"
+      : mode === "signup"
+        ? inviteOnly
+          ? "Join the beta"
+          : "Create your account"
+        : mode === "reset"
+          ? "Reset your password"
+          : "Choose a new password";
+  const sub =
+    mode === "signin"
+      ? "Pick up where you left off."
+      : mode === "signup"
+        ? inviteOnly
+          ? "The beta is by invite. You start with 10 credits, one per ad."
+          : "You start with 10 credits, one per ad."
+        : mode === "reset"
+          ? "If the account exists, we will email a one-time link."
+          : "Enter a new password for your account.";
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setError(null);
+    setNotice(null);
+  };
+  const textLink =
+    "min-h-9 cursor-pointer border-0 bg-transparent p-0 text-[13px] font-semibold text-ink underline underline-offset-4";
+
   return (
-    <div className="min-h-screen grid lg:grid-cols-[1fr_1fr] bg-bg text-ink">
-      <section className="p-3 sm:p-4 order-2 lg:order-1">
-        <div className="relative h-full overflow-hidden rounded-panel bg-inv text-inv-ink px-6 sm:px-10 py-8 sm:py-12 flex flex-col">
-          <div className="flex flex-col h-full max-w-[540px]">
-            <div className="inline-flex items-center gap-2">
-              <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-inv-ink" aria-hidden="true">
-                <svg width="12" height="12" viewBox="0 0 14 14">
-                  <path d="M2.5 7.5l3 3 6-7" fill="none" stroke="var(--vz-inv)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <span className="font-display text-[21px] leading-none">viralyz</span>
-            </div>
-
-            <div className="mt-12 sm:mt-16 vfade">
-              <h1 className="font-display text-[38px] sm:text-[52px] m-0">
-                Make the ad. Check it. Then spend on it.
-              </h1>
-              <p className="mt-5 text-[15px] text-inv-muted max-w-[30rem] leading-relaxed">
-                On-brand variants for every placement, each checked for contrast, safe zones, ratio,
-                copy length and policy before you put budget behind it.
-              </p>
-            </div>
-
-            <ol className="mt-10 m-0 p-0 list-none flex flex-col">
-              {STEPS.map((s) => (
-                <li key={s.n} className="flex gap-4 border-t border-inv-line py-3.5">
-                  <span className="text-[13px] text-inv-muted tabular w-6 shrink-0">{s.n}</span>
-                  <div>
-                    <div className="font-semibold text-[14px]">{s.title}</div>
-                    <p className="m-0 mt-0.5 text-[13px] text-inv-muted leading-snug">{s.body}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-
-            <p className="mt-auto pt-8 text-[12px] text-inv-muted">A Digiteq Holdings company · viralyz.com</p>
-          </div>
+    <div className="grid min-h-screen bg-bg text-ink lg:grid-cols-[1.1fr_1fr]">
+      <section className="order-2 flex flex-col px-6 py-10 sm:px-12 lg:order-1 lg:border-r lg:border-rule lg:py-12">
+        <Logo />
+        <div className="vfade mt-12 max-w-[560px] lg:mt-20">
+          <p className="kicker m-0">Paid social ads, checked before you spend</p>
+          <h1 className="font-display m-0 mt-3 text-[40px] sm:text-[52px]">Make the ad. Mark it up. Then spend on it.</h1>
+          <p className="m-0 mt-5 max-w-[30rem] text-[16px] text-ink-2">
+            On-brand ads for every placement, each one measured for contrast, safe zone, ratio, length and policy
+            before any budget goes behind it.
+          </p>
         </div>
+
+        <ol className="m-0 mt-10 max-w-[560px] list-none border-t border-rule p-0">
+          {STEPS.map((s) => (
+            <li key={s.n} className="grid grid-cols-[28px_110px_1fr] gap-2 border-b border-line py-3 text-[14px]">
+              <span className="font-mono text-[12px] text-muted">{s.n}</span>
+              <span className="font-semibold">{s.title}</span>
+              <span className="text-ink-2">{s.body}</span>
+            </li>
+          ))}
+        </ol>
+
+        <p className="m-0 mt-auto pt-10 font-mono text-[11px] text-muted">A Digiteq Holdings company / viralyz.com</p>
       </section>
 
-      <section className="order-1 lg:order-2 flex items-center justify-center px-6 sm:px-10 py-12 sm:py-16">
-        <div className="w-full max-w-[400px] vfade">
+      <section className="order-1 flex items-center justify-center px-6 py-12 sm:px-10 lg:order-2 lg:py-16">
+        <div className="vfade w-full max-w-[400px]">
           {mode === "signin" || mode === "signup" ? (
-            <div className="flex gap-2 p-1 rounded-full bg-[var(--tint)] mb-6">
-              {(["signin", "signup"] as const).map((m) => (
+            <div role="tablist" aria-label="Sign in or create an account" className="mb-8 grid grid-cols-2 border border-rule">
+              {(["signin", "signup"] as const).map((m, i) => (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => {
-                    setMode(m);
-                    setError(null);
-                    setNotice(null);
-                  }}
-                  className={`flex-1 rounded-full py-2 text-[13px] font-semibold border-none cursor-pointer ${
-                    mode === m
-                      ? "bg-[var(--card)] text-[var(--ink)] shadow-float"
-                      : "bg-transparent text-[var(--ink-3)]"
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => switchMode(m)}
+                  className={`min-h-11 cursor-pointer border-0 text-[14px] font-semibold ${i > 0 ? "border-l border-rule" : ""} ${
+                    mode === m ? "bg-ink text-bg" : "bg-transparent text-ink hover:bg-panel"
                   }`}
                 >
                   {m === "signin" ? "Sign in" : "Create account"}
@@ -202,70 +212,46 @@ export function LoginView({
             </div>
           ) : null}
 
-          <h2 className="font-display text-[32px] m-0">
-            {mode === "signin"
-              ? "Welcome back"
-              : mode === "signup"
-                ? inviteOnly
-                  ? "Join the beta"
-                  : "Get started free"
-                : mode === "reset"
-                  ? "Reset password"
-                  : "Choose a new password"}
-          </h2>
-          <p className="mt-2 text-[13.5px] text-[var(--ink-3)]">
-            {mode === "signin"
-              ? "Sign in to generate ad creative and check it before you spend."
-              : mode === "signup"
-                ? inviteOnly
-                  ? "Invite-only beta — 10 free credits to generate creative."
-                  : "Create an account — 10 free credits to generate creative."
-                : mode === "reset"
-                  ? "We’ll email a one-time link if the account exists."
-                  : "Enter a new password for your account."}
-          </p>
+          <h2 className="font-display m-0 text-[34px]">{heading}</h2>
+          <p className="m-0 mt-2 text-[14px] text-ink-2">{sub}</p>
 
           {clerkEnabled && (mode === "signin" || mode === "signup") ? (
             <div className="mt-6">
               <ClerkSsoButtons inviteOnly={inviteOnly} />
-              <div className="my-4 flex items-center gap-3 text-[12px] text-muted">
-                <span className="flex-1 h-px bg-[var(--line)]" />
-                or email
-                <span className="flex-1 h-px bg-[var(--line)]" />
-              </div>
+              <p className="kicker m-0 border-t border-line pt-3">Or use email</p>
             </div>
           ) : null}
 
           <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
             {mode === "signup" && (
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-muted">Name</span>
+                <FieldLabel>Name</FieldLabel>
                 <input
                   required
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Maya R."
                   className={inputClasses}
                 />
               </label>
             )}
             {mode !== "set-password" ? (
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-muted">Email</span>
+                <FieldLabel>Email</FieldLabel>
                 <input
                   type="email"
                   autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@studio.com"
+                  placeholder="you@yourshop.com"
                   className={inputClasses}
                 />
               </label>
             ) : null}
             {mode !== "reset" ? (
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-muted">Password</span>
+                <FieldLabel>{mode === "signin" ? "Password" : "Password, 8 characters or more"}</FieldLabel>
                 <input
                   type="password"
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
@@ -273,27 +259,24 @@ export function LoginView({
                   minLength={mode === "signin" ? 1 : 8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
                   className={inputClasses}
                 />
               </label>
             ) : null}
             {mode === "signup" && inviteOnly ? (
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-muted">Invite code</span>
+                <FieldLabel>Invite code</FieldLabel>
                 <input
                   required
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   placeholder="VLZ…"
-                  className={inputClasses}
+                  className={`${inputClasses} font-mono`}
                 />
               </label>
             ) : null}
 
-            {error && (
-              <Notice tone="error">{error}</Notice>
-            )}
+            {error && <Notice tone="error">{error}</Notice>}
             {notice && (
               <Notice>
                 <span className="break-all">{notice}</span>
@@ -302,7 +285,7 @@ export function LoginView({
 
             <Button type="submit" className="w-full" disabled={pending}>
               {pending
-                ? "Please wait…"
+                ? "One moment…"
                 : mode === "signin"
                   ? "Sign in"
                   : mode === "signup"
@@ -313,57 +296,30 @@ export function LoginView({
             </Button>
           </form>
 
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[12.5px]">
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1">
             {mode === "signin" ? (
-              <button
-                type="button"
-                className="border-none bg-transparent p-0 cursor-pointer text-ink font-semibold underline underline-offset-4"
-                onClick={() => {
-                  setMode("reset");
-                  setError(null);
-                  setNotice(null);
-                }}
-              >
+              <button type="button" className={textLink} onClick={() => switchMode("reset")}>
                 Forgot password?
               </button>
             ) : (
-              <button
-                type="button"
-                className="border-none bg-transparent p-0 cursor-pointer text-ink font-semibold underline underline-offset-4"
-                onClick={() => {
-                  setMode("signin");
-                  setError(null);
-                  setNotice(null);
-                }}
-              >
+              <button type="button" className={textLink} onClick={() => switchMode("signin")}>
                 Back to sign in
               </button>
             )}
             {inviteOnly ? (
-              <Link href="/waitlist" className="text-ink font-semibold underline underline-offset-4">
+              <Link href="/waitlist" className="text-[13px] font-semibold text-ink underline underline-offset-4">
                 Join the waitlist
               </Link>
             ) : null}
           </div>
 
           {demoEnabled && (mode === "signin" || mode === "signup") ? (
-            <>
-              <div className="my-6 flex items-center gap-3 text-[12px] text-muted">
-                <span className="flex-1 h-px bg-[var(--line)]" />
-                or
-                <span className="flex-1 h-px bg-[var(--line)]" />
-              </div>
-
-              {/* No credentials in the client bundle — the server resolves the demo account. */}
-              <Button
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={() => void login({ demo: true })}
-              >
-                Explore with sample data
+            <div className="mt-8 border-t border-line pt-5">
+              {/* No credentials in the client bundle: the server resolves the demo account. */}
+              <Button variant="outline" className="w-full" disabled={pending} onClick={() => void login({ demo: true })}>
+                Look around with sample data
               </Button>
-            </>
+            </div>
           ) : null}
         </div>
       </section>

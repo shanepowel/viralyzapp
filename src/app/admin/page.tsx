@@ -7,11 +7,12 @@ import { isStaffRole } from "@/lib/roles";
 import { resolveAppUser } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   const user = await resolveAppUser();
   if (!user) redirect("/login");
-  if (!isStaffRole(user.role)) redirect("/discover");
+  if (!isStaffRole(user.role)) redirect("/studio");
 
   const [invites, waitlist, accounts] = await Promise.all([
     prisma.invite.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),

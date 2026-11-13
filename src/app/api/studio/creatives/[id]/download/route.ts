@@ -14,9 +14,17 @@ export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
   const creative = await prisma.creative.findFirst({
     where: { id, userId: auth.session.userId },
+    include: { checks: { orderBy: { computedAt: "desc" }, take: 1 } },
   });
   if (!creative?.compositeKey) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // A failed policy rule holds the download. The Studio hides the button;
+  // this makes the link itself refuse too.
+  const factors = (creative.checks[0]?.factors ?? []) as Array<{ kind?: string; status?: string; passed?: boolean }>;
+  if (Array.isArray(factors) && factors.some((f) => f.kind === "rule" && f.status === "scored" && f.passed === false)) {
+    return NextResponse.json({ error: "policy_blocked" }, { status: 409 });
   }
 
   let bytes: Buffer | null = null;

@@ -21,7 +21,11 @@ const REMOVED_ROUTES = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["bullmq", "ioredis", "@aws-sdk/client-s3", "pg"],
+  serverExternalPackages: ["bullmq", "ioredis", "@aws-sdk/client-s3", "pg", "sharp"],
+  // sharp loads libvips from a platform package at runtime; tracing misses it.
+  outputFileTracingIncludes: {
+    "/**": ["./node_modules/@img/**/*", "./node_modules/sharp/**/*"],
+  },
   async redirects() {
     return REMOVED_ROUTES.map((route) => ({
       source: `/${route}/:path*`,

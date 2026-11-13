@@ -4,6 +4,9 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { FieldLabel, inputClasses } from "@/components/ui/Field";
+import { Logo } from "@/components/ui/Logo";
+import { Notice } from "@/components/ui/Notice";
 
 export default function ClaimInvitePage() {
   const router = useRouter();
@@ -26,44 +29,40 @@ export default function ClaimInvitePage() {
       setError(typeof data.error === "string" ? data.error : "Could not claim invite.");
       return;
     }
-    router.push("/discover");
+    router.push("/studio");
     router.refresh();
   }
 
   return (
-    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] flex items-center justify-center px-6 py-16">
+    <div className="flex min-h-screen items-center justify-center bg-bg px-6 py-16 text-ink">
       <div className="w-full max-w-[440px]">
-        <div className="font-display text-[17px]">Viralyz</div>
-        <h1 className="font-display text-[32px] mt-8 mb-2 tracking-[-0.02em]">
+        <Logo />
+        <h1 className="font-display mb-3 mt-10 text-[38px]">
           Enter your invite
         </h1>
-        <p className="text-[14px] text-[var(--ink-3)] m-0 mb-8">
+        <p className="m-0 mb-8 text-[15px] text-ink-2">
           You signed in with SSO. Paste your beta invite code to finish creating your Viralyz
           account.
         </p>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-[var(--ink-3)]">
-              Invite code
-            </span>
+            <FieldLabel>Invite code</FieldLabel>
             <input
               required
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
               placeholder="VLZ…"
-              className="w-full rounded-inner border border-line bg-[var(--card)] px-4 py-3 text-[14px] outline-none focus:border-ink"
+              className={inputClasses}
             />
           </label>
           {error ? (
-            <div className="rounded-inner bg-[var(--s30-soft)] text-[var(--s30)] text-[12.5px] px-3.5 py-2.5">
-              {error}
-            </div>
+            <Notice tone="error">{error}</Notice>
           ) : null}
-          <Button type="submit" className="w-full py-3" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Claiming…" : "Continue"}
           </Button>
         </form>
-        <p className="mt-6 text-[13px] text-[var(--ink-3)]">
+        <p className="mt-6 text-[13px] text-ink-2">
           No invite?{" "}
           <Link href="/waitlist" className="text-ink font-semibold underline underline-offset-4">
             Join the waitlist

@@ -1,7 +1,6 @@
 "use client";
 
 import { useClerk } from "@clerk/nextjs";
-import { LogOut } from "lucide-react";
 
 export function ClerkSignOut() {
   const { signOut } = useClerk();
@@ -9,11 +8,9 @@ export function ClerkSignOut() {
     <button
       type="button"
       onClick={() => void signOut({ redirectUrl: "/" })}
-      title="Sign out"
-      className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full border-none bg-transparent cursor-pointer text-muted hover:bg-panel hover:text-ink"
-      aria-label="Sign out"
+      className="min-h-11 w-full cursor-pointer border-0 bg-transparent px-0 text-left text-[14px] font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
     >
-      <LogOut className="w-[15px]" strokeWidth={2} />
+      Sign out
     </button>
   );
 }

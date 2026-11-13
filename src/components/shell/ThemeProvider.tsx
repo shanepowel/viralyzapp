@@ -5,13 +5,13 @@ import type { ReactNode } from "react";
 
 /**
  * Light by default; dark via data-theme="dark" on <html>, same as the
- * marketing site. With no stored choice we follow prefers-color-scheme.
+ * marketing site. "Match device" is a choice the user makes, not the default.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="data-theme"
-      defaultTheme="system"
+      defaultTheme="light"
       enableSystem
       enableColorScheme={false}
       disableTransitionOnChange

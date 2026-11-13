@@ -5,6 +5,7 @@ import { latestRowPerCreative } from "@/lib/results/calibration";
 import { resolveAppUser } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Results" };
 
 export default async function ResultsPage() {
   const user = await resolveAppUser();

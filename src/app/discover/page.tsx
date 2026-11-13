@@ -3,6 +3,7 @@ import { DiscoverView } from "@/components/discover/DiscoverView";
 import { isVendorAdsEnabled, metaAdLibraryToken } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Discover" };
 
 export default function DiscoverPage() {
   return (

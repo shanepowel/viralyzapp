@@ -1,43 +1,54 @@
 /**
- * Viralyz "Studio" tokens, shared with the marketing site (shanepowel/viralyz
- * apps/web/styles/tokens.css). Keep the values in step. No raw hex
- * outside this file.
+ * Viralyz "Marked-up proof" tokens, shared with the marketing site
+ * (shanepowel/viralyz apps/web/styles/tokens.css). Keep the values in step.
+ * No raw hex outside this file.
  *
- * Light is the default. Dark is set by data-theme="dark" on <html>, and
- * also applies under prefers-color-scheme: dark when no theme was chosen.
+ * Light is the default. Dark is set by data-theme="dark" on <html>; "Match
+ * device" resolves to one of the two through next-themes.
  *
- * Colour rules: chrome is monochrome. --vz-pass / --vz-warn / --vz-fail are
- * only for pre-flight check results — never brand, links, decoration or charts.
+ * Colour rules: the interface is paper and ink. Three colours carry meaning
+ * and nothing else is coloured:
+ *   --vz-mark  (red)   what must change, and destructive actions
+ *   --vz-guide (blue)  guides that never print: safe zones, skeletons, focus
+ *   --vz-pass  (green) cleared, and the tick in the logo
+ * --vz-warn and --vz-fail both resolve to the mark colour; the component,
+ * not the hue, says whether an ad is "to fix" or "blocked".
  */
 
 :root {
-  --vz-bg: #ffffff;
-  --vz-panel: #f6f6f4;
+  --vz-bg: #f4f4f1;
+  --vz-panel: #eaeae5;
   --vz-card: #ffffff;
-  --vz-line: #e7e7e4;
-  --vz-ink: #0a0a0a;
-  --vz-muted: #5e6166;
-  --vz-btn: #0a0a0a;
-  --vz-btn-ink: #ffffff;
-  --vz-inv: #0a0a0a;
-  --vz-inv-ink: #ffffff;
-  --vz-inv-muted: #a2a5aa;
-  --vz-inv-line: rgb(255 255 255 / 0.14);
-  --vz-inv-raised: rgb(255 255 255 / 0.06);
-  --vz-dot: rgb(10 10 10 / 0.09);
-  --vz-scrim: rgb(10 10 10 / 0.4);
-  --vz-pass: #0b7a45;
-  --vz-pass-bg: #e5f3eb;
-  --vz-warn: #8a5a00;
-  --vz-warn-bg: #fbf0d9;
-  --vz-fail: #c2253a;
-  --vz-fail-bg: #fbe5e8;
+  --vz-line: #d8d8d2;
+  --vz-rule: #111110;
+  --vz-ink: #111110;
+  --vz-ink-2: #3b3b38;
+  --vz-muted: #6a6a66;
+  --vz-btn: #111110;
+  --vz-btn-ink: #f4f4f1;
+  --vz-inv: #111110;
+  --vz-inv-ink: #f4f4f1;
+  --vz-inv-muted: #9a9a94;
+  --vz-inv-line: rgb(244 244 241 / 0.2);
+  --vz-inv-raised: rgb(244 244 241 / 0.06);
+  --vz-scrim: rgb(17 17 16 / 0.45);
+  --vz-pass: #0e7c47;
+  --vz-pass-bg: rgb(14 124 71 / 0.08);
+  --vz-mark: #c8321a;
+  --vz-mark-bg: rgb(200 50 26 / 0.07);
+  --vz-guide: #2462c4;
+  --vz-warn: var(--vz-mark);
+  --vz-warn-bg: var(--vz-mark-bg);
+  --vz-fail: var(--vz-mark);
+  --vz-fail-bg: var(--vz-mark-bg);
 
-  --vz-radius-pill: 999px;
-  --vz-radius-inner: 12px;
-  --vz-radius-card: 20px;
-  --vz-radius-panel: 28px;
-  --vz-shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 16px 40px rgb(0 0 0 / 0.06);
+  /* Square by design: 2px on controls, none on surfaces. */
+  --vz-radius-pill: 2px;
+  --vz-radius-inner: 2px;
+  --vz-radius-card: 0px;
+  --vz-radius-panel: 0px;
+  /* The only shadow in the system: a hard offset under floating messages. */
+  --vz-shadow-float: 4px 4px 0 0 var(--vz-ink);
 
   --vz-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --vz-dur-fast: 150ms;
@@ -49,50 +60,50 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --vz-bg: #0a0a0b;
-    --vz-panel: #141416;
-    --vz-card: #1c1c1f;
-    --vz-line: #2a2a2e;
-    --vz-ink: #f5f5f3;
-    --vz-muted: #a2a5aa;
-    --vz-btn: #f5f5f3;
-    --vz-btn-ink: #0a0a0b;
-    --vz-inv: #1c1c1f;
-    --vz-inv-ink: #f5f5f3;
-    --vz-inv-muted: #a2a5aa;
-    --vz-dot: rgb(245 245 243 / 0.08);
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --vz-bg: #141413;
+    --vz-panel: #232321;
+    --vz-card: #1e1e1c;
+    --vz-line: #35352f;
+    --vz-rule: #edede8;
+    --vz-ink: #edede8;
+    --vz-ink-2: #c4c4be;
+    --vz-muted: #9a9a94;
+    --vz-btn: #edede8;
+    --vz-btn-ink: #141413;
+    --vz-inv: #1e1e1c;
+    --vz-inv-ink: #edede8;
+    --vz-inv-muted: #9a9a94;
     --vz-scrim: rgb(0 0 0 / 0.6);
-    --vz-pass: #3dd68c;
-    --vz-pass-bg: rgb(61 214 140 / 0.14);
-    --vz-warn: #f2b83a;
-    --vz-warn-bg: rgb(242 184 58 / 0.14);
-    --vz-fail: #ff6b7a;
-    --vz-fail-bg: rgb(255 107 122 / 0.14);
+    --vz-pass: #4cd08a;
+    --vz-pass-bg: rgb(76 208 138 / 0.11);
+    --vz-mark: #ff6a4d;
+    --vz-mark-bg: rgb(255 106 77 / 0.11);
+    --vz-guide: #7db8ff;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --vz-bg: #0a0a0b;
-  --vz-panel: #141416;
-  --vz-card: #1c1c1f;
-  --vz-line: #2a2a2e;
-  --vz-ink: #f5f5f3;
-  --vz-muted: #a2a5aa;
-  --vz-btn: #f5f5f3;
-  --vz-btn-ink: #0a0a0b;
-  --vz-inv: #1c1c1f;
-  --vz-inv-ink: #f5f5f3;
-  --vz-inv-muted: #a2a5aa;
-  --vz-dot: rgb(245 245 243 / 0.08);
+  --vz-bg: #141413;
+  --vz-panel: #232321;
+  --vz-card: #1e1e1c;
+  --vz-line: #35352f;
+  --vz-rule: #edede8;
+  --vz-ink: #edede8;
+  --vz-ink-2: #c4c4be;
+  --vz-muted: #9a9a94;
+  --vz-btn: #edede8;
+  --vz-btn-ink: #141413;
+  --vz-inv: #1e1e1c;
+  --vz-inv-ink: #edede8;
+  --vz-inv-muted: #9a9a94;
   --vz-scrim: rgb(0 0 0 / 0.6);
-  --vz-pass: #3dd68c;
-  --vz-pass-bg: rgb(61 214 140 / 0.14);
-  --vz-warn: #f2b83a;
-  --vz-warn-bg: rgb(242 184 58 / 0.14);
-  --vz-fail: #ff6b7a;
-  --vz-fail-bg: rgb(255 107 122 / 0.14);
+  --vz-pass: #4cd08a;
+  --vz-pass-bg: rgb(76 208 138 / 0.11);
+  --vz-mark: #ff6a4d;
+  --vz-mark-bg: rgb(255 106 77 / 0.11);
+  --vz-guide: #7db8ff;
   color-scheme: dark;
 }
 

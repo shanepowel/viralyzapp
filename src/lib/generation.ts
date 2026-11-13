@@ -9,7 +9,6 @@ import { PLACEMENTS } from "@/lib/preflight/placements";
 import { runPreflight } from "@/lib/preflight/index";
 import type { Placement } from "@/lib/preflight/types";
 import { prisma } from "@/lib/prisma";
-import { composeAd } from "@/lib/compose";
 import { getImageProvider } from "@/lib/providers";
 import type { ImageProvider } from "@/lib/providers/types";
 import { storeUpload } from "@/lib/storage";
@@ -280,6 +279,10 @@ async function runGeneration(
   const price = creative.product.price != null ? formatPrice(creative.product.price, creative.product.currency) : null;
   const brandColors = (creative.brand.colors as unknown as string[]) ?? [];
 
+  // Loaded on demand: sharp is a native module, and a static import here made
+  // every page that reads generation state (Studio, Creatives) fail to load
+  // when the binary was missing from the function bundle.
+  const { composeAd } = await import("@/lib/compose");
   const { image, layout } = await composeAd({
     background: backgroundBuffer,
     placement,

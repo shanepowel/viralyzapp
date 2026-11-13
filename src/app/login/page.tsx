@@ -6,8 +6,8 @@ import { isClerkEnabled, isDemoLoginEnabled, isInviteOnly } from "@/lib/env";
 import { getSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Sign in · Viralyz",
-  description: "Sign in to Viralyz — see if content will work before you spend a penny on it.",
+  title: "Sign in",
+  description: "Sign in to Viralyz: paid social ads, checked before you spend.",
 };
 
 export const dynamic = "force-dynamic";
@@ -15,11 +15,11 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage() {
   const session = await getSession();
   if (session) {
-    redirect("/discover");
+    redirect("/studio");
   }
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--paper)]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
       <LoginView
         clerkEnabled={isClerkEnabled()}
         inviteOnly={isInviteOnly()}

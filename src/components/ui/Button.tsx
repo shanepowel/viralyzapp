@@ -1,24 +1,31 @@
 import Link from "next/link";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "outline" | "ghost";
+type Variant = "primary" | "outline" | "ghost" | "mark";
 type Size = "sm" | "md";
 
-/** Pill button, matching the marketing site: black primary, hairline secondary. */
+/**
+ * Rectangular button with a 2px corner. Primary is solid ink, outline is a
+ * 1px ink rule, ghost is an underlined text action, and "mark" (red) is kept
+ * for fixes on a marked ad and for destructive actions.
+ */
 export function buttonClasses(variant: Variant = "primary", size: Size = "md", className = "") {
-  const padding = size === "sm" ? "min-h-9 px-3.5 text-[13px]" : "min-h-11 px-5 text-[14px]";
-  const base = `inline-flex items-center justify-center gap-2 font-semibold rounded-full whitespace-nowrap cursor-pointer no-underline disabled:cursor-not-allowed disabled:opacity-40 ${padding}`;
+  const padding = size === "sm" ? "min-h-9 px-3 text-[13px]" : "min-h-11 px-4 text-[14px]";
+  const base = `inline-flex items-center justify-center gap-2 font-semibold rounded-inner whitespace-nowrap cursor-pointer no-underline disabled:cursor-not-allowed disabled:opacity-40 ${padding}`;
 
   let styles = "";
   switch (variant) {
     case "primary":
-      styles = "btn-primary border-none bg-btn text-btn-ink";
+      styles = "btn-primary border border-btn bg-btn text-btn-ink";
       break;
     case "outline":
-      styles = "btn-outline border border-line bg-card text-ink";
+      styles = "btn-outline border border-rule bg-transparent text-ink";
       break;
     case "ghost":
-      styles = "btn-ghost border-none bg-transparent text-muted";
+      styles = "btn-ghost border border-transparent bg-transparent text-ink underline underline-offset-4 decoration-line";
+      break;
+    case "mark":
+      styles = "btn-mark border border-mark bg-mark text-bg";
       break;
     default: {
       const _exhaustive: never = variant;
@@ -49,7 +56,7 @@ type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   children: ReactNode;
 };
 
-/** The same pill as a link. Internal paths use next/link. */
+/** The same button as a link. Internal paths use next/link. */
 export function ButtonLink({ href, variant = "primary", size = "md", className = "", children, ...rest }: LinkProps) {
   const classes = buttonClasses(variant, size, className);
   if (href.startsWith("/") && !href.startsWith("//")) {

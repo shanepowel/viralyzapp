@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProofTile } from "@/components/studio/AdProof";
+import { ProofDesk } from "@/components/studio/ProofDesk";
+import {
+  ANGLE_LABELS,
+  PLACEMENT_LABELS,
+  readProof,
+  toCreativeDTO,
+  type CreativeDTO,
+} from "@/components/studio/proof";
 import { ButtonLink } from "@/components/ui/Button";
+import { inputClasses } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
-import { PLACEMENT_LABELS, VariantCard, type CreativeDTO } from "@/components/studio/VariantCard";
+import { Segmented } from "@/components/ui/Segmented";
 
-type Filter = "all" | "passing" | "attention";
+type Filter = "all" | "cleared" | "marked";
 
-function needsAttention(c: CreativeDTO): boolean {
-  if (c.status === "failed") return true;
-  return (c.checks[0]?.factors ?? []).some((f) => f.status === "scored" && f.kind !== "model" && !f.passed);
+function isMarked(c: CreativeDTO): boolean {
+  const v = readProof(c).verdict;
+  return v === "fix" || v === "blocked" || v === "failed";
 }
 
 const POLL_INTERVAL_MS = 2000;
@@ -17,34 +27,45 @@ const POLL_INTERVAL_MS = 2000;
 export function CreativesView({
   initialCreatives,
   generationAvailable,
+  creditsPerVariant,
 }: {
   initialCreatives: CreativeDTO[];
   generationAvailable: boolean;
+  creditsPerVariant?: number;
 }) {
   const [creatives, setCreatives] = useState<CreativeDTO[]>(initialCreatives);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placement, setPlacement] = useState("all");
   const [filter, setFilter] = useState<Filter>("all");
+  const [openId, setOpenId] = useState<string | null>(null);
 
+  const counts = useMemo(
+    () => ({
+      cleared: creatives.filter((c) => readProof(c).verdict === "cleared").length,
+      marked: creatives.filter(isMarked).length,
+    }),
+    [creatives],
+  );
   const visible = useMemo(
     () =>
       creatives.filter((c) => {
         if (placement !== "all" && c.placement !== placement) return false;
-        if (filter === "passing") return c.status === "ready" && !needsAttention(c);
-        if (filter === "attention") return needsAttention(c);
+        if (filter === "cleared") return readProof(c).verdict === "cleared";
+        if (filter === "marked") return isMarked(c);
         return true;
       }),
     [creatives, placement, filter],
   );
   const placementsUsed = Array.from(new Set(creatives.map((c) => c.placement)));
+  const open = creatives.find((c) => c.id === openId) ?? null;
 
   function pollCreative(id: string) {
     async function tick() {
       const res = await fetch(`/api/studio/creatives/${id}`);
       if (!res.ok) return;
       const data = await res.json();
-      setCreatives((prev) => prev.map((c) => (c.id === id ? toDTO(data.creative) : c)));
+      setCreatives((prev) => prev.map((c) => (c.id === id ? toCreativeDTO(data.creative) : c)));
       if (data.creative.status === "pending" || data.creative.status === "generating") {
         setTimeout(() => void tick(), POLL_INTERVAL_MS);
       }
@@ -79,7 +100,9 @@ export function CreativesView({
       const data = await res.json();
       if (!res.ok) {
         setError(
-          data.error === "insufficient_credits" ? "Not enough credits to regenerate." : "Could not regenerate.",
+          data.error === "insufficient_credits"
+            ? "Not enough credits to make it again. Nothing was charged."
+            : "Could not make it again.",
         );
         return;
       }
@@ -98,7 +121,10 @@ export function CreativesView({
         },
         ...prev.filter((c) => c.id !== creative.id),
       ]);
+      setOpenId(newId);
       pollCreative(newId);
+    } catch {
+      setError("Could not make it again.");
     } finally {
       setRegeneratingId(null);
     }
@@ -106,27 +132,26 @@ export function CreativesView({
 
   if (creatives.length === 0) {
     return (
-      <div className="rounded-panel border border-line bg-panel dots min-h-[320px] flex flex-col items-center justify-center gap-4 p-8 text-center">
+      <div className="grid grid-cols-1 gap-6 border-y border-rule py-10 md:grid-cols-[200px_1fr]">
+        <p className="kicker m-0 text-ink">Nothing here yet</p>
         <div>
-          <div className="font-semibold text-[15px]">Nothing generated yet</div>
-          <p className="m-0 mt-1 text-[13px] text-muted">Make your first variants in the Studio.</p>
+          <p className="font-display m-0 text-[26px]">Every ad you make is kept here with its check.</p>
+          <p className="m-0 mt-2 max-w-[520px] text-[14px] text-ink-2">
+            Start a batch in Studio. The proofs land on this sheet, cleared or marked.
+          </p>
+          <ButtonLink href="/studio?new=1" className="mt-5">
+            New batch
+          </ButtonLink>
         </div>
-        <ButtonLink href="/studio">Open Studio</ButtonLink>
       </div>
     );
   }
-
-  const filters: Array<{ id: Filter; label: string }> = [
-    { id: "all", label: `All ${creatives.length}` },
-    { id: "passing", label: "All checks passed" },
-    { id: "attention", label: "Needs a fix" },
-  ];
 
   return (
     <div className="vfade">
       {!generationAvailable && (
         <Notice className="mb-5">
-          Regenerating isn&apos;t available right now: the image provider or copy model isn&apos;t configured.
+          Making ads again is switched off for now: the image provider or the copy model is not configured.
         </Notice>
       )}
       {error && (
@@ -134,29 +159,46 @@ export function CreativesView({
           {error}
         </Notice>
       )}
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div role="radiogroup" aria-label="Filter by checks" className="flex flex-wrap gap-1 rounded-full bg-panel p-1">
-          {filters.map((f) => (
+
+      {open ? (
+        <div className="mb-8">
+          <div className="flex justify-end pb-2">
             <button
-              key={f.id}
               type="button"
-              role="radio"
-              aria-checked={filter === f.id}
-              onClick={() => setFilter(f.id)}
-              className={`min-h-8 rounded-full px-3.5 text-[13px] font-semibold border-none cursor-pointer ${
-                filter === f.id ? "bg-card text-ink shadow-float" : "bg-transparent text-muted hover:text-ink"
-              }`}
+              onClick={() => setOpenId(null)}
+              className="min-h-9 cursor-pointer border-0 bg-transparent font-mono text-[11px] uppercase tracking-[0.06em] text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
             >
-              {f.label}
+              Close proof
             </button>
-          ))}
+          </div>
+          <ProofDesk
+            key={open.id}
+            creative={open}
+            onRegenerate={() => void regenerate(open)}
+            regenerating={regeneratingId === open.id}
+            regenerateDisabled={!generationAvailable}
+            creditsPerVariant={creditsPerVariant}
+          />
         </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3 border-b border-rule pb-3">
+        <Segmented
+          label="Filter by check result"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: `All ${creatives.length}` },
+            { value: "cleared", label: `Cleared ${counts.cleared}` },
+            { value: "marked", label: `Marked ${counts.marked}` },
+          ]}
+        />
         {placementsUsed.length > 1 ? (
           <select
             aria-label="Filter by placement"
             value={placement}
             onChange={(e) => setPlacement(e.target.value)}
-            className="min-h-10 rounded-full border border-line bg-card px-3.5 text-[13px] font-semibold"
+            className={`${inputClasses} !min-h-10 !w-auto text-[13px]`}
           >
             <option value="all">All placements</option>
             {placementsUsed.map((p) => (
@@ -166,57 +208,27 @@ export function CreativesView({
             ))}
           </select>
         ) : null}
+        <p className="m-0 ml-auto font-mono text-[12px] text-muted" aria-live="polite">
+          Showing {visible.length} of {creatives.length}
+        </p>
       </div>
-      {visible.length === 0 ? (
-        <p className="text-[13px] text-muted">Nothing matches this filter.</p>
-      ) : null}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+
+      {visible.length === 0 ? <p className="mt-6 text-[14px] text-ink-2">Nothing matches this filter.</p> : null}
+
+      <div className="grid grid-cols-2 items-end gap-x-4 gap-y-6 pt-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {visible.map((creative) => (
-          <VariantCard
+          <ProofTile
             key={creative.id}
             creative={creative}
-            onRegenerate={() => void regenerate(creative)}
-            regenerating={regeneratingId === creative.id}
-            regenerateDisabled={!generationAvailable}
+            selected={creative.id === openId}
+            onSelect={() => {
+              setOpenId(creative.id);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            caption={`${ANGLE_LABELS[creative.angle] ?? creative.angle} ${creative.tag}`}
           />
         ))}
       </div>
     </div>
   );
-}
-
-function toDTO(raw: {
-  id: string;
-  tag: string;
-  angle: string;
-  placement: string;
-  productId: string;
-  referenceId: string | null;
-  status: CreativeDTO["status"];
-  headline: string | null;
-  primaryText: string | null;
-  cta: string | null;
-  compositeUrl: string | null;
-  aiGenerated: boolean;
-  checks: Array<{ headline: number | null; headlineBasis: unknown; factors: unknown }>;
-}): CreativeDTO {
-  return {
-    id: raw.id,
-    tag: raw.tag,
-    angle: raw.angle,
-    placement: raw.placement,
-    productId: raw.productId,
-    referenceId: raw.referenceId,
-    status: raw.status,
-    headline: raw.headline,
-    primaryText: raw.primaryText,
-    cta: raw.cta,
-    compositeUrl: raw.compositeUrl,
-    aiGenerated: raw.aiGenerated,
-    checks: raw.checks.map((c) => ({
-      headline: c.headline,
-      headlineBasis: c.headlineBasis as { counted: number; total: number },
-      factors: c.factors as CreativeDTO["checks"][number]["factors"],
-    })),
-  };
 }
