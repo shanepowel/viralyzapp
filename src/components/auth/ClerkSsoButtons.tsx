@@ -11,13 +11,13 @@ type Props = {
 export function ClerkSsoButtons({ inviteOnly }: Props) {
   return (
     <div className="flex flex-col gap-2 mb-4">
-      <SignInButton mode="modal" forceRedirectUrl="/score">
+      <SignInButton mode="modal" forceRedirectUrl="/discover">
         <Button type="button" className="w-full py-3 text-[14px]">
           Continue with Google / SSO
         </Button>
       </SignInButton>
       {!inviteOnly ? (
-        <SignUpButton mode="modal" forceRedirectUrl="/score">
+        <SignUpButton mode="modal" forceRedirectUrl="/discover">
           <Button type="button" variant="outline" className="w-full py-3">
             Create account with SSO
           </Button>

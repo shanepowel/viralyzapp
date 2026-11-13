@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage() {
   const session = await getSession();
   if (session) {
-    redirect("/score");
+    redirect("/discover");
   }
 
   return (

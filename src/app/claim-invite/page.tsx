@@ -26,7 +26,7 @@ export default function ClaimInvitePage() {
       setError(typeof data.error === "string" ? data.error : "Could not claim invite.");
       return;
     }
-    router.push("/score");
+    router.push("/discover");
     router.refresh();
   }
 
