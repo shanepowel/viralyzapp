@@ -32,6 +32,11 @@ export function hasS3() {
   );
 }
 
+/** Vercel Blob. Used when S3 is unset so uploads survive a serverless restart. */
+export function hasBlob() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+}
+
 export function hasAnthropic() {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
 }

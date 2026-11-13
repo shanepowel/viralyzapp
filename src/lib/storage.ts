@@ -1,13 +1,27 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { hasS3 } from "@/lib/env";
+import { put } from "@vercel/blob";
+import { hasBlob, hasS3 } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
 
 export type StoredObject = {
   storageKey: string;
   mediaUrl: string;
-  backend: "local" | "s3";
+  backend: "local" | "s3" | "blob" | "database";
 };
+
+const BLOB_HOST_SUFFIX = ".blob.vercel-storage.com";
+
+/** Public Vercel Blob URLs only. Anything else is not fetched, so a stored key cannot become an SSRF target. */
+export function isVercelBlobUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname.endsWith(BLOB_HOST_SUFFIX);
+  } catch {
+    return false;
+  }
+}
 
 function s3Client() {
   const endpoint = process.env.S3_ENDPOINT?.trim() || undefined;
@@ -67,7 +81,43 @@ async function putS3(
   };
 }
 
-/** Upload media — S3 when configured, otherwise local `public/uploads/`. */
+async function putBlob(
+  storageKey: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<StoredObject> {
+  const blob = await put(storageKey, bytes, {
+    access: "public",
+    contentType,
+    addRandomSuffix: false,
+  });
+  return {
+    storageKey: blob.url,
+    mediaUrl: blob.url,
+    backend: "blob",
+  };
+}
+
+function persistInDatabase() {
+  return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL?.trim());
+}
+
+async function putDatabase(
+  bytes: Buffer,
+  contentType: string,
+  userId: string,
+): Promise<StoredObject> {
+  const row = await prisma.storedFile.create({
+    data: { userId, contentType, bytes: new Uint8Array(bytes) },
+  });
+  return {
+    storageKey: `db:${row.id}`,
+    mediaUrl: `/api/media/${row.id}`,
+    backend: "database",
+  };
+}
+
+/** Upload media — S3, then Vercel Blob, then Postgres in production, otherwise local disk. */
 export async function storeUpload(opts: {
   userId: string;
   contentId: string;
@@ -82,11 +132,20 @@ export async function storeUpload(opts: {
   if (hasS3()) {
     return putS3(storageKey, opts.bytes, contentType);
   }
+  if (hasBlob()) {
+    return putBlob(storageKey, opts.bytes, contentType);
+  }
+  if (persistInDatabase()) {
+    return putDatabase(opts.bytes, contentType, opts.userId);
+  }
   return putLocal(storageKey, opts.bytes);
 }
 
 export function storageBackend() {
-  return hasS3() ? "s3" : "local";
+  if (hasS3()) return "s3";
+  if (hasBlob()) return "blob";
+  if (persistInDatabase()) return "database";
+  return "local";
 }
 
 function localUploadPath(storageKey: string): string | null {
@@ -96,8 +155,17 @@ function localUploadPath(storageKey: string): string | null {
   return file;
 }
 
-/** Reads a previously stored composite. Local disk, or S3 when that backend is configured. */
+/** Reads a previously stored composite. Blob URL, S3, or local disk. */
 export async function readStoredObject(storageKey: string): Promise<Buffer | null> {
+  if (storageKey.startsWith("db:")) {
+    const row = await prisma.storedFile.findUnique({ where: { id: storageKey.slice(3) } });
+    return row ? Buffer.from(row.bytes) : null;
+  }
+  if (isVercelBlobUrl(storageKey)) {
+    const res = await fetch(storageKey);
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  }
   if (hasS3()) {
     const bucket = process.env.S3_BUCKET!.trim();
     const res = await s3Client().send(new GetObjectCommand({ Bucket: bucket, Key: storageKey }));
