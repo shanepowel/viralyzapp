@@ -10,6 +10,7 @@ import { enqueueStudioJob } from "@/lib/queue";
 import { withUniqueTag } from "@/lib/tags";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const PLACEMENT_IDS = Object.keys(PLACEMENTS) as [keyof typeof PLACEMENTS, ...(keyof typeof PLACEMENTS)[]];
 
@@ -95,8 +96,8 @@ export async function POST(req: Request) {
     creativeIds.push(creative.id);
     const queued = await enqueueStudioJob(creative.id);
     if (!queued) {
-      // Keep the inline run alive after the response. If the isolate dies
-      // first, the creative stays open and the next read fails it and refunds.
+      // Start the run after the response. If the isolate dies, the creative
+      // stays open and the next read resumes it until the attempt cap.
       after(() => processCreativeJob(creative.id));
     }
   }

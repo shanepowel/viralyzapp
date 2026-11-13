@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isAdFormat } from "@/lib/ad-format";
 import { requireApiSession } from "@/lib/api";
 import { rateLimit } from "@/lib/rate-limit";
 import { listReferences, listUserReferences, saveUserReference } from "@/lib/references";
@@ -13,11 +14,16 @@ export async function GET(req: Request) {
   if (auth.error) return auth.error;
 
   const params = new URL(req.url).searchParams;
+  const formatRaw = params.get("format");
+  if (formatRaw && !isAdFormat(formatRaw)) {
+    return NextResponse.json({ error: "format must be image or video" }, { status: 400 });
+  }
+  const format = formatRaw && isAdFormat(formatRaw) ? formatRaw : undefined;
 
   // "Yours" (Tier 2) is listed separately: listReferences is the shared
   // catalog and never returns user-owned rows.
   if (params.get("scope") === "mine") {
-    return NextResponse.json({ items: await listUserReferences(auth.session.userId) });
+    return NextResponse.json({ items: await listUserReferences(auth.session.userId, { format }) });
   }
 
   const minDaysRunningRaw = params.get("minDaysRunning");
@@ -29,6 +35,7 @@ export async function GET(req: Request) {
   const result = await listReferences({
     category: params.get("category") ?? undefined,
     source: params.get("source") ?? undefined,
+    format,
     minDaysRunning,
     cursor: params.get("cursor") ?? undefined,
   });

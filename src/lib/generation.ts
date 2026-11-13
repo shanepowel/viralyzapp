@@ -1,8 +1,9 @@
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import type { Angle } from "@/lib/copy";
 import { writeCopy } from "@/lib/copy";
 import { refund, settle } from "@/lib/credits";
-import { hasAnthropic, hasRedis } from "@/lib/env";
+import { hasAnthropic } from "@/lib/env";
 import { moderateImagePrompt } from "@/lib/moderation";
 import { PLACEMENTS } from "@/lib/preflight/placements";
 import { runPreflight } from "@/lib/preflight/index";
@@ -58,55 +59,104 @@ export type GenerationDeps = {
 };
 
 /**
- * A variant still pending or generating after this long is stuck. Without
- * Redis the job runs inside the request, and that work dies with the
- * isolate — nothing else would fail it or return the credit.
+ * One attempt's hang limit. A dead request does not wait this long: the
+ * lease below is what lets the next poll pick the job back up.
  */
 export const GENERATION_TIMEOUT_MS = 3 * 60 * 1000;
 
+/**
+ * How long a generating row counts as owned. The worker refreshes this while
+ * it is alive. Redis is optional — when the request isolate dies, the lease
+ * goes stale and the next read resumes the job instead of refunding it.
+ */
+export const GENERATION_LEASE_MS = 75 * 1000;
+
+/** Attempts before an open variant is failed and its credit returned. */
+export const GENERATION_MAX_ATTEMPTS = 3;
+
 const OPEN_STATUSES = ["pending", "generating"] as const;
 
+const HEARTBEAT_MS = 20_000;
+
 /** Marks an in-flight creative failed and returns its reserved credit. Idempotent. */
-async function failAndRefund(creativeId: string): Promise<boolean> {
+async function failAndRefund(creativeId: string, runId?: string): Promise<boolean> {
   const failed = await prisma.creative.updateMany({
-    where: { id: creativeId, status: { in: [...OPEN_STATUSES] } },
-    data: { status: "failed" },
+    where: {
+      id: creativeId,
+      status: { in: [...OPEN_STATUSES] },
+      ...(runId ? { runId } : {}),
+    },
+    data: { status: "failed", runId: null },
   });
   if (failed.count === 0) return false;
   await refund(creativeId);
   return true;
 }
 
-/**
- * Fails one creative that has sat in pending or generating past the deadline,
- * and refunds its credit. No-op when Redis is configured (the worker owns
- * those jobs) or the creative is already finished or still inside the window.
- */
-export async function failStuckCreative(creativeId: string, now = new Date()): Promise<boolean> {
-  if (hasRedis()) return false;
-  const creative = await prisma.creative.findUnique({
-    where: { id: creativeId },
-    select: { status: true, updatedAt: true },
-  });
-  if (!creative) return false;
-  if (creative.status !== "pending" && creative.status !== "generating") return false;
-  if (now.getTime() - creative.updatedAt.getTime() < GENERATION_TIMEOUT_MS) return false;
-  return failAndRefund(creativeId);
+function leaseFresh(updatedAt: Date, now: Date) {
+  return now.getTime() - updatedAt.getTime() < GENERATION_LEASE_MS;
 }
 
-/** Same sweep for every open creative still on a seller's screen. */
-export async function failStuckCreativesForUser(userId: string, now = new Date()): Promise<number> {
-  if (hasRedis()) return 0;
-  const cutoff = new Date(now.getTime() - GENERATION_TIMEOUT_MS);
-  const stuck = await prisma.creative.findMany({
-    where: { userId, status: { in: [...OPEN_STATUSES] }, updatedAt: { lt: cutoff } },
+export type ContinueResult = "skipped" | "resumed" | "refunded";
+
+/**
+ * Resumes a variant whose worker has gone, or refunds it once the attempt
+ * cap is spent. A fresh lease means someone is still generating, so this
+ * leaves that row alone. Works with or without Redis.
+ */
+export async function continueCreative(
+  creativeId: string,
+  now = new Date(),
+  run: (creativeId: string) => Promise<void> = processCreativeJob,
+): Promise<ContinueResult> {
+  const creative = await prisma.creative.findUnique({
+    where: { id: creativeId },
+    select: { status: true, updatedAt: true, attempts: true },
+  });
+  if (!creative) return "skipped";
+  if (creative.status !== "pending" && creative.status !== "generating") return "skipped";
+  if (creative.status === "generating" && leaseFresh(creative.updatedAt, now)) return "skipped";
+  if (creative.attempts >= GENERATION_MAX_ATTEMPTS) {
+    return (await failAndRefund(creativeId)) ? "refunded" : "skipped";
+  }
+  await run(creativeId);
+  return "resumed";
+}
+
+/** Same decision for every open creative on a seller's screen. */
+export async function continueOpenCreativesForUser(
+  userId: string,
+  run: (creativeId: string) => Promise<void> = processCreativeJob,
+): Promise<void> {
+  const open = await prisma.creative.findMany({
+    where: { userId, status: { in: [...OPEN_STATUSES] } },
     select: { id: true },
   });
-  let failed = 0;
-  for (const row of stuck) {
-    if (await failAndRefund(row.id)) failed += 1;
+  for (const row of open) {
+    await continueCreative(row.id, new Date(), run);
   }
-  return failed;
+}
+
+/** Picks up the oldest open variants. The cron uses this so a closed tab still finishes. */
+export async function continueOpenCreatives(now = new Date(), limit = 2): Promise<number> {
+  const staleBefore = new Date(now.getTime() - GENERATION_LEASE_MS);
+  const rows = await prisma.creative.findMany({
+    where: {
+      OR: [
+        { status: "pending" },
+        { status: "generating", updatedAt: { lt: staleBefore } },
+      ],
+    },
+    orderBy: { updatedAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+  let handled = 0;
+  for (const row of rows) {
+    const result = await continueCreative(row.id, now);
+    if (result !== "skipped") handled += 1;
+  }
+  return handled;
 }
 
 /**
@@ -131,26 +181,57 @@ export async function processCreativeJob(creativeId: string, deps: GenerationDep
     return;
   }
 
-  await prisma.creative.updateMany({
-    where: { id: creativeId, status: { in: [...OPEN_STATUSES] } },
-    data: { status: "generating" },
+  const runId = randomUUID();
+  const staleBefore = new Date(Date.now() - GENERATION_LEASE_MS);
+  const claimed = await prisma.creative.updateMany({
+    where: {
+      id: creativeId,
+      attempts: { lt: GENERATION_MAX_ATTEMPTS },
+      OR: [{ status: "pending" }, { status: "generating", updatedAt: { lt: staleBefore } }],
+    },
+    data: { status: "generating", runId, attempts: { increment: 1 } },
   });
+  if (claimed.count === 0) return;
 
   const timeoutMs = deps.timeoutMs ?? GENERATION_TIMEOUT_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
   try {
+    heartbeat = setInterval(() => {
+      void prisma.creative
+        .updateMany({
+          where: { id: creativeId, runId, status: "generating" },
+          data: { status: "generating" },
+        })
+        .catch(() => {});
+    }, HEARTBEAT_MS);
+    heartbeat.unref?.();
     await Promise.race([
-      runGeneration(creative, provider, deps),
+      runGeneration(creative, provider, deps, runId),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error("generation timed out")), timeoutMs);
       }),
     ]);
-  } catch {
-    // The in-flight run may still finish. Its ready-write only lands while
-    // the row is still open, so a timeout that already failed it wins.
-    await failAndRefund(creativeId);
+  } catch (err) {
+    const owned = await prisma.creative.findUnique({
+      where: { id: creativeId },
+      select: { attempts: true, runId: true },
+    });
+    if (!owned || owned.runId !== runId) return;
+    const timedOut = err instanceof Error && err.message === "generation timed out";
+    if (timedOut && owned.attempts < GENERATION_MAX_ATTEMPTS) {
+      // Release the claim so the next poll can try again. The run id no
+      // longer matches, so this attempt cannot settle after the release.
+      await prisma.creative.updateMany({
+        where: { id: creativeId, runId, status: { in: [...OPEN_STATUSES] } },
+        data: { status: "pending", runId: null },
+      });
+      return;
+    }
+    await failAndRefund(creativeId, runId);
   } finally {
     if (timer) clearTimeout(timer);
+    if (heartbeat) clearInterval(heartbeat);
   }
 }
 
@@ -158,6 +239,7 @@ async function runGeneration(
   creative: Prisma.CreativeGetPayload<{ include: { brand: true; product: true; reference: true } }>,
   provider: ImageProvider,
   deps: GenerationDeps,
+  runId: string,
 ): Promise<void> {
   const writeCopyFn = deps.writeCopyFn ?? writeCopy;
   const referenceStructure = (creative.reference?.structure as unknown as RefStructure | null) ?? null;
@@ -221,18 +303,8 @@ async function runGeneration(
     cta: copy.cta,
   });
 
-  await prisma.check.create({
-    data: {
-      creativeId: creative.id,
-      checkVersion: CHECK_VERSION,
-      factors: factors as unknown as Prisma.InputJsonValue,
-      headline,
-      headlineBasis: { counted, total },
-    },
-  });
-
   const finished = await prisma.creative.updateMany({
-    where: { id: creative.id, status: { in: [...OPEN_STATUSES] } },
+    where: { id: creative.id, runId, status: { in: [...OPEN_STATUSES] } },
     data: {
       headline: copy.headline,
       primaryText: copy.primaryText,
@@ -247,7 +319,16 @@ async function runGeneration(
       aiGenerated: true,
     },
   });
-  // A timeout, or the stuck-job sweep, already failed and refunded this row.
+  // A later attempt owns the row, or this one was released. Do not settle.
   if (finished.count === 0) return;
+  await prisma.check.create({
+    data: {
+      creativeId: creative.id,
+      checkVersion: CHECK_VERSION,
+      factors: factors as unknown as Prisma.InputJsonValue,
+      headline,
+      headlineBasis: { counted, total },
+    },
+  });
   await settle(creative.id);
 }

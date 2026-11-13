@@ -180,6 +180,8 @@ model Reference {
   daysRunning  Int?
   variantCount Int?
   country      String?
+  /// image | video. Null when the source did not say which.
+  format       String?
   structure    Json? // { hookType, layout, offerType, cta, model }
   thumbnailUrl String?
   fetchedAt    DateTime  @default(now())
@@ -190,6 +192,7 @@ model Reference {
   creatives Creative[]
 
   @@index([userId])
+  @@index([userId, format])
   @@index([source, sourceRef])
 }
 
@@ -211,6 +214,10 @@ model Creative {
   tag           String   @unique // vz_<4 lowercase base36 chars>
   aiGenerated   Boolean  @default(true)
   status        String   @default("pending") // pending | generating | ready | failed
+  /// How many times a worker has claimed this variant. A dead request can resume until this hits the cap.
+  attempts      Int      @default(0)
+  /// Identifies the worker that currently owns the row, so a late write cannot finish a reclaimed job.
+  runId         String?
   provider      String?
   providerModel String?
   createdAt     DateTime @default(now())

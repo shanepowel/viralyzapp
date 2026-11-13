@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { balance, grant, reserve } from "@/lib/credits";
 import type { Copy } from "@/lib/copy";
-import { failStuckCreative, GENERATION_TIMEOUT_MS, processCreativeJob } from "@/lib/generation";
+import {
+  continueCreative,
+  GENERATION_LEASE_MS,
+  GENERATION_MAX_ATTEMPTS,
+  processCreativeJob,
+} from "@/lib/generation";
 import { prisma } from "@/lib/prisma";
 import { FakeProvider } from "@/lib/providers/fake";
 
@@ -190,7 +195,7 @@ describe("processCreativeJob", () => {
     expect(await balance(userId)).toBe(9);
   });
 
-  it("fails a hung generation and refunds the credit without a later success overwriting it", async () => {
+  it("releases a hung attempt so a late write cannot finish it, and refunds only the last attempt", async () => {
     await grant(userId, 10, "opening balance");
     const creative = await makeCreative();
     await reserve(userId, 1, creative.id);
@@ -203,56 +208,63 @@ describe("processCreativeJob", () => {
       timeoutMs: 30,
     });
 
+    const released = await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } });
+    expect(released.status).toBe("pending");
+    expect(released.attempts).toBe(1);
+    expect(await balance(userId)).toBe(9);
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const afterLateWrite = await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } });
+    expect(afterLateWrite.status).toBe("pending");
+    expect(afterLateWrite.compositeUrl).toBeNull();
+    expect(await balance(userId)).toBe(9);
+
+    await prisma.creative.update({
+      where: { id: creative.id },
+      data: { attempts: GENERATION_MAX_ATTEMPTS - 1, status: "pending" },
+    });
+    const slow = new FakeProvider();
+    slow.delayMs = 250;
+    await processCreativeJob(creative.id, { provider: slow, writeCopyFn: stubWriteCopy, timeoutMs: 30 });
     const failed = await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } });
     expect(failed.status).toBe("failed");
     expect(await balance(userId)).toBe(10);
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const after = await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } });
-    expect(after.status).toBe("failed");
-    expect(after.compositeUrl).toBeNull();
-    expect(await balance(userId)).toBe(10);
   });
 
-  it("fails a creative left generating with no Redis and refunds its credit", async () => {
-    const previous = process.env.REDIS_URL;
-    delete process.env.REDIS_URL;
-    try {
-      await grant(userId, 10, "opening balance");
-      const creative = await makeCreative();
-      await reserve(userId, 1, creative.id);
-      await prisma.creative.update({ where: { id: creative.id }, data: { status: "generating" } });
+  it("resumes a stale generation and leaves a live one alone", async () => {
+    await grant(userId, 10, "opening balance");
+    const live = await makeCreative();
+    await reserve(userId, 1, live.id);
+    await prisma.creative.update({ where: { id: live.id }, data: { status: "generating", attempts: 1 } });
 
-      expect(await failStuckCreative(creative.id, new Date())).toBe(false);
-      expect((await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } })).status).toBe("generating");
+    const run = vi.fn(async () => {});
+    expect(await continueCreative(live.id, new Date(), run)).toBe("skipped");
+    expect(run).not.toHaveBeenCalled();
+    expect((await prisma.creative.findUniqueOrThrow({ where: { id: live.id } })).status).toBe("generating");
 
-      expect(
-        await failStuckCreative(creative.id, new Date(Date.now() + GENERATION_TIMEOUT_MS + 1000)),
-      ).toBe(true);
-      expect((await prisma.creative.findUniqueOrThrow({ where: { id: creative.id } })).status).toBe("failed");
-      expect(await balance(userId)).toBe(10);
+    const stale = await makeCreative("problem");
+    await reserve(userId, 1, stale.id);
+    await prisma.creative.update({
+      where: { id: stale.id },
+      data: { status: "generating", attempts: 1 },
+    });
+    await prisma.$executeRaw`UPDATE "Creative" SET "updatedAt" = ${new Date(Date.now() - GENERATION_LEASE_MS - 1000)} WHERE "id" = ${stale.id}`;
+    expect(await continueCreative(stale.id, new Date(), run)).toBe("resumed");
+    expect(run).toHaveBeenCalledWith(stale.id);
+    expect((await prisma.creative.findUniqueOrThrow({ where: { id: stale.id } })).status).toBe("generating");
 
-      process.env.REDIS_URL = "redis://127.0.0.1:6379";
-      const ignored = await prisma.creative.create({
-        data: {
-          userId,
-          brandId,
-          productId,
-          placement: "story_9x16",
-          angle: "demo",
-          tag: `vz_${randomUUID().slice(0, 4)}`,
-          status: "generating",
-        },
-      });
-      await reserve(userId, 1, ignored.id);
-      expect(
-        await failStuckCreative(ignored.id, new Date(Date.now() + GENERATION_TIMEOUT_MS + 1000)),
-      ).toBe(false);
-      expect((await prisma.creative.findUniqueOrThrow({ where: { id: ignored.id } })).status).toBe("generating");
-    } finally {
-      if (previous === undefined) delete process.env.REDIS_URL;
-      else process.env.REDIS_URL = previous;
-    }
+    const exhausted = await makeCreative("proof");
+    await reserve(userId, 1, exhausted.id);
+    await prisma.creative.update({
+      where: { id: exhausted.id },
+      data: {
+        status: "pending",
+        attempts: GENERATION_MAX_ATTEMPTS,
+      },
+    });
+    expect(await continueCreative(exhausted.id, new Date(), run)).toBe("refunded");
+    expect((await prisma.creative.findUniqueOrThrow({ where: { id: exhausted.id } })).status).toBe("failed");
+    expect(await balance(userId)).toBe(8);
   });
 });
 

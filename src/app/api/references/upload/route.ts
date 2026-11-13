@@ -6,8 +6,10 @@ import { storeUpload } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES = 5_000_000;
-const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const MAX_IMAGE_BYTES = 5_000_000;
+const MAX_VIDEO_BYTES = 12_000_000;
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();
@@ -21,13 +23,19 @@ export async function POST(req: Request) {
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Attach an image file" }, { status: 400 });
+    return NextResponse.json({ error: "Attach an image or video file" }, { status: 400 });
   }
-  if (!ALLOWED_TYPES.has(file.type)) {
-    return NextResponse.json({ error: "Upload a PNG, JPEG, WebP or GIF image" }, { status: 400 });
+  const isImage = IMAGE_TYPES.has(file.type);
+  const isVideo = VIDEO_TYPES.has(file.type);
+  if (!isImage && !isVideo) {
+    return NextResponse.json({ error: "Upload a PNG, JPEG, WebP, GIF, MP4, WebM or QuickTime file" }, { status: 400 });
   }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Images must be 5 MB or smaller" }, { status: 400 });
+  const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  if (file.size > maxBytes) {
+    return NextResponse.json(
+      { error: isVideo ? "Videos must be 12 MB or smaller" : "Images must be 5 MB or smaller" },
+      { status: 400 },
+    );
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -41,7 +49,8 @@ export async function POST(req: Request) {
 
   const reference = await saveUserReference(auth.session.userId, {
     file: stored,
-    image: { data: bytes, mediaType: file.type },
+    contentType: file.type,
+    image: isImage ? { data: bytes, mediaType: file.type } : undefined,
   });
   return NextResponse.json({ reference });
 }

@@ -1,4 +1,5 @@
 import type { Prisma, Reference } from "@/generated/prisma/client";
+import { resolveAdFormat, type AdFormat } from "@/lib/ad-format";
 import { extractBrand } from "@/lib/brand-import";
 import { hasAnthropic } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -19,14 +20,28 @@ type ExtractionInput = Parameters<typeof extractStructure>[0];
  * What the model gets to look at for a user reference: the uploaded image
  * itself, or a pasted page's title and lead image (fetched SSRF-safely).
  */
+async function pageBody(
+  url: string,
+  deps: SaveReferenceDeps,
+): Promise<string | null> {
+  // Vitest does not fetch on its own: a pasted example.com URL would leave
+  // the suite. Callers that need the page pass fetchPage.
+  const fetchPage = deps.fetchPage ?? (process.env.VITEST ? null : safeFetch);
+  if (!fetchPage) return null;
+  try {
+    return (await fetchPage(url)).body;
+  } catch {
+    return null;
+  }
+}
+
 async function extractionInput(
   input: { url?: string; image?: { data: Buffer; mediaType: string } },
-  deps: SaveReferenceDeps,
+  html: string | null,
 ): Promise<ExtractionInput | null> {
   if (input.image) return { image: input.image };
-  if (!input.url) return null;
-  const page = await (deps.fetchPage ?? safeFetch)(input.url);
-  const draft = extractBrand(page.body, input.url);
+  if (!input.url || html == null) return null;
+  const draft = extractBrand(html, input.url);
   if (!draft.title && draft.imageUrls.length === 0) return null;
   return { text: draft.title ?? undefined, imageUrl: draft.imageUrls[0] };
 }
@@ -42,7 +57,12 @@ async function extractionInput(
  */
 export async function saveUserReference(
   userId: string,
-  input: { url?: string; file?: StoredObject; image?: { data: Buffer; mediaType: string } },
+  input: {
+    url?: string;
+    file?: StoredObject;
+    image?: { data: Buffer; mediaType: string };
+    contentType?: string;
+  },
   deps: SaveReferenceDeps = {},
 ): Promise<Reference> {
   if (!input.url && !input.file) {
@@ -50,6 +70,12 @@ export async function saveUserReference(
   }
   const source = input.url ? "user_url" : "user_upload";
   const sourceRef = input.url ?? input.file!.storageKey;
+  const html = input.url ? await pageBody(input.url, deps) : null;
+  const format = resolveAdFormat({
+    contentType: input.contentType ?? input.image?.mediaType,
+    url: input.url,
+    html,
+  });
 
   const existing = await prisma.reference.findFirst({ where: { userId, source, sourceRef } });
   const row =
@@ -60,29 +86,42 @@ export async function saveUserReference(
         source,
         sourceRef,
         thumbnailUrl: input.file?.mediaUrl,
+        format,
       },
     }));
 
-  if (row.structure != null || (!deps.extract && !hasAnthropic())) return row;
+  if (existing && format && existing.format == null) {
+    await prisma.reference.update({ where: { id: existing.id }, data: { format } });
+  }
+
+  if (row.structure != null || (!deps.extract && !hasAnthropic())) {
+    return format && row.format == null ? { ...row, format } : row;
+  }
 
   try {
-    const extractionSource = await extractionInput(input, deps);
-    if (!extractionSource) return row;
+    const extractionSource = await extractionInput(input, html);
+    if (!extractionSource) return format && row.format == null ? { ...row, format } : row;
     const structure = structureToStore(await (deps.extract ?? extractStructure)(extractionSource));
-    if (!structure) return row;
+    if (!structure && !(format && row.format == null)) return row;
     return prisma.reference.update({
       where: { id: row.id },
-      data: { structure: structure as Prisma.InputJsonValue },
+      data: {
+        ...(structure ? { structure: structure as Prisma.InputJsonValue } : {}),
+        ...(format && row.format == null ? { format } : {}),
+      },
     });
   } catch {
-    return row;
+    return format && row.format == null ? { ...row, format } : row;
   }
 }
 
 /** A user's own (Tier 2) references, newest first. */
-export async function listUserReferences(userId: string): Promise<Reference[]> {
+export async function listUserReferences(
+  userId: string,
+  filter: { format?: AdFormat } = {},
+): Promise<Reference[]> {
   return prisma.reference.findMany({
-    where: { userId },
+    where: { userId, ...(filter.format ? { format: filter.format } : {}) },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
@@ -112,6 +151,7 @@ export async function deleteUserReference(id: string, userId: string): Promise<b
 export type ListReferencesFilter = {
   category?: string;
   source?: string;
+  format?: AdFormat;
   minDaysRunning?: number;
   cursor?: string;
 };
@@ -134,6 +174,7 @@ export async function listReferences(
       userId: null,
       ...(filter.category ? { category: filter.category } : {}),
       ...(filter.source ? { source: filter.source } : {}),
+      ...(filter.format ? { format: filter.format } : {}),
       // A null daysRunning never satisfies >=, so this excludes those rows
       // rather than treating "unknown" as passing the filter.
       ...(filter.minDaysRunning != null ? { daysRunning: { gte: filter.minDaysRunning } } : {}),

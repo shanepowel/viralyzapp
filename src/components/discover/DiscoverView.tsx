@@ -16,6 +16,7 @@ type DiscoverReference = {
   daysRunning: number | null;
   variantCount: number | null;
   thumbnailUrl: string | null;
+  format: "image" | "video" | null;
   structure: { hookType: string | null; offerType: string | null; layout: string | null } | null;
 };
 
@@ -35,6 +36,8 @@ function provenanceBadge(ref: DiscoverReference): string {
   // "Winner" signal is limited to what's actually measured — days running
   // and variant count — and only shown when known, never implied.
   const parts = [label];
+  if (ref.format === "image") parts.push("Image");
+  if (ref.format === "video") parts.push("Video");
   if (ref.daysRunning != null) parts.push(`running ${ref.daysRunning} days`);
   if (ref.variantCount != null) parts.push(`${ref.variantCount} variants`);
   return parts.join(" · ");
@@ -78,6 +81,7 @@ export function DiscoverView({
 }) {
   const router = useRouter();
   const [source, setSource] = useState("");
+  const [format, setFormat] = useState("");
   const [category, setCategory] = useState("");
   const [minDaysRunning, setMinDaysRunning] = useState("");
   const [items, setItems] = useState<DiscoverReference[]>([]);
@@ -104,6 +108,7 @@ export function DiscoverView({
           if (category.trim()) params.set("category", category.trim());
           if (minDaysRunning.trim()) params.set("minDaysRunning", minDaysRunning.trim());
         }
+        if (format === "image" || format === "video") params.set("format", format);
 
         const res = await fetch(`/api/references?${params.toString()}`, { signal: controller.signal });
         const data = await res.json();
@@ -124,7 +129,7 @@ export function DiscoverView({
     }
     void run();
     return () => controller.abort();
-  }, [source, category, minDaysRunning, reloadKey]);
+  }, [source, format, category, minDaysRunning, reloadKey]);
 
   async function saved(res: Response) {
     const data = await res.json().catch(() => ({}));
@@ -165,7 +170,7 @@ export function DiscoverView({
       form.set("file", file);
       await saved(await fetch("/api/references/upload", { method: "POST", body: form }));
     } catch {
-      setSaveError("Could not upload that image.");
+      setSaveError("Could not upload that file.");
     } finally {
       setSaving(false);
     }
@@ -206,6 +211,15 @@ export function DiscoverView({
                 <option value="tiktok_ccl">TikTok CCL</option>
                 {vendorEnabled && <option value="vendor">Vendor feed</option>}
                 <option value={MINE}>Yours</option>
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1.5 min-w-[140px]">
+              <FieldLabel>Format</FieldLabel>
+              <select value={format} onChange={(e) => setFormat(e.target.value)} className={inputClasses}>
+                <option value="">All formats</option>
+                <option value="image">Image</option>
+                <option value="video">Video</option>
               </select>
             </label>
 
@@ -259,12 +273,12 @@ export function DiscoverView({
               disabled={saving}
               className="self-start bg-transparent border-none p-0 text-[13px] font-semibold text-ink underline underline-offset-4 cursor-pointer disabled:opacity-40"
             >
-              Or upload an image
+              Or upload an image or video
             </button>
             <input
               ref={fileInput}
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
+              accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -298,7 +312,7 @@ export function DiscoverView({
             </div>
             <p className="m-0 mt-1 text-[13px] text-muted">
               {showingMine
-                ? "Paste a link or upload an image above."
+                ? "Paste a link or upload an image or video above."
                 : "Try another source, or add an ad you like as your own reference."}
             </p>
           </div>

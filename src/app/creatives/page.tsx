@@ -3,7 +3,8 @@ import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CreativesView } from "@/components/creatives/CreativesView";
 import type { CreativeDTO } from "@/components/studio/VariantCard";
-import { failStuckCreativesForUser, generationAvailable } from "@/lib/generation";
+import { continueOpenCreativesForUser, generationAvailable } from "@/lib/generation";
+import { scheduleCreative } from "@/lib/schedule-creative";
 import { prisma } from "@/lib/prisma";
 import { resolveAppUser } from "@/lib/users";
 
@@ -13,7 +14,7 @@ export default async function CreativesPage() {
   const user = await resolveAppUser();
   // AppPage itself redirects to /login when there's no user — this is only
   // for TypeScript, since the query below needs a concrete id.
-  if (user) await failStuckCreativesForUser(user.id);
+  if (user) await continueOpenCreativesForUser(user.id, scheduleCreative);
   const creatives = user
     ? await prisma.creative.findMany({
         where: { userId: user.id },

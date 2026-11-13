@@ -66,6 +66,28 @@ describe("saveUserReference", () => {
       imageUrl: "https://cdn.example.com/ad.jpg",
     });
     expect(ref.structure).toMatchObject({ hookType: "discount", model: "test-model" });
+    expect(ref.format).toBe("image");
+  });
+
+  it("stores video when the pasted page has a video creative", async () => {
+    const fetchPage = vi.fn().mockResolvedValue({
+      body: `<meta property="og:video" content="https://cdn.example.com/ad.mp4">`,
+    });
+    const url = `https://shop.example.com/ads/${randomUUID()}`;
+    const ref = await saveUserReference(userId, { url }, { fetchPage });
+    expect(ref.format).toBe("video");
+  });
+
+  it("stores image for an uploaded image and video for an uploaded video", async () => {
+    const image = { data: Buffer.from("fake-png"), mediaType: "image/png" };
+    const file = { storageKey: `${userId}/ref-${randomUUID()}.png`, mediaUrl: "/uploads/x.png", backend: "local" as const };
+    const uploaded = await saveUserReference(userId, { file, image, contentType: "image/png" });
+    expect(uploaded.format).toBe("image");
+
+    const clip = { storageKey: `${userId}/ref-${randomUUID()}.mp4`, mediaUrl: "/uploads/x.mp4", backend: "local" as const };
+    const video = await saveUserReference(userId, { file: clip, contentType: "video/mp4" });
+    expect(video.format).toBe("video");
+    expect(video.source).toBe("user_upload");
   });
 
   it("extracts structure from an upload's own bytes", async () => {
@@ -168,7 +190,9 @@ describe("extractStructure", () => {
 describe("listReferences", () => {
   const created: string[] = [];
 
-  async function makeOfficialReference(data: Partial<{ daysRunning: number | null; source: string }>) {
+  async function makeOfficialReference(
+    data: Partial<{ daysRunning: number | null; source: string; format: "image" | "video" | null }>,
+  ) {
     const ref = await prisma.reference.create({
       data: {
         userId: null,
@@ -176,6 +200,7 @@ describe("listReferences", () => {
         source: data.source ?? "tiktok_ccl",
         sourceRef: randomUUID(),
         daysRunning: data.daysRunning ?? null,
+        format: data.format ?? null,
       },
     });
     created.push(ref.id);
@@ -197,6 +222,18 @@ describe("listReferences", () => {
     const ids = items.map((r) => r.id);
     expect(ids).toContain(withDays.id);
     expect(ids).not.toContain(unknownDays.id);
+  });
+
+  it("filters by format and leaves unknown media out of an image or video listing", async () => {
+    const image = await makeOfficialReference({ format: "image" });
+    const video = await makeOfficialReference({ format: "video" });
+    const unknown = await makeOfficialReference({ format: null });
+
+    const images = await listReferences({ format: "image" });
+    const ids = images.items.map((r) => r.id);
+    expect(ids).toContain(image.id);
+    expect(ids).not.toContain(video.id);
+    expect(ids).not.toContain(unknown.id);
   });
 
   it("never returns a Tier 2 (user-owned) reference, even when source matches", async () => {
