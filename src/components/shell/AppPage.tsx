@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { balance } from "@/lib/credits";
 import { isClerkEnabled } from "@/lib/env";
+import { isStaffRole } from "@/lib/roles";
 import { getClerkIdentity, resolveAppUser } from "@/lib/users";
 
 export async function AppPage({ children }: { children: ReactNode }) {
@@ -22,7 +23,7 @@ export async function AppPage({ children }: { children: ReactNode }) {
       userName={user.name}
       plan={user.plan}
       balance={userBalance}
-      isAdmin={user.role === "admin"}
+      isAdmin={isStaffRole(user.role)}
       showOnboarding={!user.onboardingDone}
       clerkEnabled={isClerkEnabled()}
     >

@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { AdminView } from "@/components/admin/AdminView";
 import { AppPage } from "@/components/shell/AppPage";
-import { balancesFor } from "@/lib/credits";
+import { listAccountActivity } from "@/lib/admin-accounts";
 import { prisma } from "@/lib/prisma";
+import { isStaffRole } from "@/lib/roles";
 import { resolveAppUser } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
@@ -10,25 +11,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const user = await resolveAppUser();
   if (!user) redirect("/login");
-  if (user.role !== "admin") redirect("/discover");
+  if (!isStaffRole(user.role)) redirect("/discover");
 
-  const [invites, waitlist, userRows] = await Promise.all([
+  const [invites, waitlist, accounts] = await Promise.all([
     prisma.invite.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
     prisma.waitlistEntry.findMany({ orderBy: { createdAt: "desc" }, take: 200 }),
-    prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        plan: true,
-        role: true,
-      },
-    }),
+    listAccountActivity(),
   ]);
-  const balances = await balancesFor(userRows.map((u) => u.id));
-  const users = userRows.map((u) => ({ ...u, balance: balances[u.id] ?? 0 }));
 
   return (
     <AppPage>
@@ -50,7 +39,12 @@ export default async function AdminPage() {
           inviteCode: w.inviteCode,
           createdAt: w.createdAt.toISOString(),
         }))}
-        initialUsers={users}
+        viewerRole={user.role === "superadmin" ? "superadmin" : "admin"}
+        initialAccounts={accounts.map((account) => ({
+          ...account,
+          createdAt: account.createdAt.toISOString(),
+          lastCreativeAt: account.lastCreativeAt?.toISOString() ?? null,
+        }))}
       />
     </AppPage>
   );

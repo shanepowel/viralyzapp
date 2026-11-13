@@ -76,7 +76,7 @@ export default async function AccountPage() {
           </div>
         </Panel>
 
-        {user.role === "admin" ? (
+        {user.role === "admin" || user.role === "superadmin" ? (
           <Panel>
             <div className="p-5">
               <Link href="/admin" className="text-ink font-semibold underline underline-offset-4">

@@ -14,8 +14,6 @@ const schema = z.object({
     .refine((v) => v !== 0, "delta must be nonzero")
     .optional(),
   note: z.string().optional(),
-  plan: z.enum(["credits", "unlimited"]).optional(),
-  role: z.enum(["user", "admin"]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -37,12 +35,8 @@ export async function POST(req: Request) {
     await adjust(user.id, parsed.data.delta, parsed.data.note ?? "admin adjustment");
   }
 
-  const updated = await prisma.user.update({
+  const updated = await prisma.user.findUniqueOrThrow({
     where: { id: user.id },
-    data: {
-      ...(parsed.data.plan ? { plan: parsed.data.plan } : {}),
-      ...(parsed.data.role ? { role: parsed.data.role } : {}),
-    },
     select: { id: true, email: true, plan: true, role: true },
   });
 

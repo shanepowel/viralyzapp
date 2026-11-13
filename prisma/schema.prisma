@@ -18,7 +18,7 @@ model User {
   handle           String?   @unique
   avatarUrl        String?
   plan             String    @default("credits") // credits | unlimited
-  role             String    @default("user") // user | admin
+  role             String    @default("user") // user | admin | superadmin
   emailVerifiedAt  DateTime?
   inviteCodeUsed   String?
   onboardingDone   Boolean   @default(false)

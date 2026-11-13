@@ -5,6 +5,8 @@ import { grant } from "@/lib/credits";
 import { demoLoginEmail, isDemoLoginEnabled, isInviteOnly } from "@/lib/env";
 import { consumeInvite } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
+import { isStaffRole, roleForNewAccount } from "@/lib/roles";
+import { ensureStaffRole } from "@/lib/users";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
 
@@ -63,7 +65,7 @@ async function resolveDemoUser() {
   if (!isDemoLoginEnabled()) return null;
   const user = await prisma.user.findUnique({ where: { email: demoLoginEmail() } });
   if (!user) return null;
-  if (user.role === "admin") return null;
+  if (isStaffRole(user.role)) return null;
   return user;
 }
 
@@ -86,7 +88,7 @@ export async function handleLogin(req: Request) {
 
     if (parsed.data.demo) {
       const demoUser = await resolveDemoUser();
-      if (!demoUser) {
+      if (!demoUser || isStaffRole(demoUser.role)) {
         return NextResponse.json({ error: "Demo sign-in is unavailable." }, { status: 403 });
       }
       return sessionResponse(demoUser);
@@ -100,7 +102,7 @@ export async function handleLogin(req: Request) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    return sessionResponse(user);
+    return sessionResponse(await ensureStaffRole(user));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Login failed";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -157,18 +159,20 @@ export async function handleSignup(req: Request) {
     const handleTaken = await prisma.user.findUnique({ where: { handle } });
     const finalHandle = handleTaken ? `${handle}${Math.floor(Math.random() * 900 + 100)}` : handle;
 
+    const role = roleForNewAccount(email);
     const user = await prisma.user.create({
       data: {
         email,
         name: parsed.data.name,
         handle: finalHandle,
         passwordHash: await hashPassword(parsed.data.password),
-        plan: "credits",
+        plan: role === "user" ? "credits" : "unlimited",
+        role,
         inviteCodeUsed,
         emailVerifiedAt: null,
       },
     });
-    await grant(user.id, 10, "opening balance");
+    await grant(user.id, role === "user" ? 10 : 999, "opening balance");
 
     return sessionResponse(user);
   } catch (err) {

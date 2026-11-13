@@ -22,25 +22,52 @@ type WaitlistEntry = {
   createdAt: string;
 };
 
-type UserRow = {
+type CreativeCounts = { pending: number; generating: number; ready: number; failed: number };
+
+type AccountRow = {
   id: string;
   email: string;
   name: string;
   plan: string;
-  balance: number;
   role: string;
+  balance: number;
+  brandCount: number;
+  creatives: CreativeCounts;
+  createdAt: string;
+  lastCreativeAt: string | null;
+  onboardingDone: boolean;
 };
 
 type Props = {
+  viewerRole: "admin" | "superadmin";
   initialInvites: Invite[];
   initialWaitlist: WaitlistEntry[];
-  initialUsers: UserRow[];
+  initialAccounts: AccountRow[];
 };
 
-export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Props) {
+function creativeSummary(counts: CreativeCounts): string {
+  const total = counts.pending + counts.generating + counts.ready + counts.failed;
+  if (total === 0) return "None";
+  return `${counts.ready} ready · ${counts.pending + counts.generating} open · ${counts.failed} failed`;
+}
+
+function roleLabel(role: string): string {
+  switch (role) {
+    case "superadmin":
+      return "Super admin";
+    case "admin":
+      return "Admin";
+    case "user":
+      return "Seller";
+    default:
+      return role;
+  }
+}
+
+export function AdminView({ viewerRole, initialInvites, initialWaitlist, initialAccounts }: Props) {
   const [invites, setInvites] = useState(initialInvites);
   const [waitlist, setWaitlist] = useState(initialWaitlist);
-  const [users, setUsers] = useState(initialUsers);
+  const [accounts, setAccounts] = useState(initialAccounts);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -52,11 +79,11 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
     const [i, w, u] = await Promise.all([
       fetch("/api/admin/invites").then((r) => r.json()),
       fetch("/api/admin/waitlist").then((r) => r.json()),
-      fetch("/api/admin/credits").then((r) => r.json()),
+      fetch("/api/admin/accounts").then((r) => r.json()),
     ]);
     if (i.invites) setInvites(i.invites);
     if (w.entries) setWaitlist(w.entries);
-    if (u.users) setUsers(u.users);
+    if (u.accounts) setAccounts(u.accounts);
   }
 
   async function createInvites(e: FormEvent) {
@@ -125,16 +152,33 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
     await refresh();
   }
 
+  async function setRole(email: string, role: "user" | "admin") {
+    setError(null);
+    setNotice(null);
+    const res = await fetch("/api/admin/roles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, role }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error ?? "Could not change that role");
+      return;
+    }
+    setNotice(`${email} is now ${roleLabel(role).toLowerCase()}.`);
+    await refresh();
+  }
+
   return (
     <div className="pt-8 pb-16">
       <p className="text-[12px] font-semibold text-muted m-0">
         Admin
       </p>
       <h1 className="font-display text-[32px] mt-2 mb-2 tracking-[-0.02em]">
-        Beta ops
+        Admin
       </h1>
       <p className="text-[14px] text-[var(--ink-3)] m-0 mb-6">
-        Invites, waitlist approvals, and credit top-ups for the first ~1k testers.
+        One place for accounts, invites, the waitlist, and credits. Counts only — ad copy, files, and results stay on the account that owns them.
       </p>
 
       {error ? (
@@ -147,6 +191,63 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
           {notice}
         </div>
       ) : null}
+
+      <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
+        <h2 className="font-display text-[18px] m-0 mb-3">Accounts</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px] text-left">
+            <thead className="font-mono text-[10px] uppercase text-[var(--ink-3)]">
+              <tr>
+                <th className="py-2 pr-3">Account</th>
+                <th className="py-2 pr-3">Role</th>
+                <th className="py-2 pr-3">Credits</th>
+                <th className="py-2 pr-3">Creatives</th>
+                <th className="py-2 pr-3">Last activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accounts.map((account) => (
+                <tr key={account.id} className="border-t border-[var(--line)]">
+                  <td className="py-2 pr-3">
+                    <div>{account.name}</div>
+                    <div className="text-[11px] text-[var(--ink-3)]">{account.email}</div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    {viewerRole === "superadmin" && account.role !== "superadmin" ? (
+                      <select
+                        aria-label={`Role for ${account.email}`}
+                        value={account.role === "admin" ? "admin" : "user"}
+                        onChange={(e) => {
+                          const next = e.target.value === "admin" ? "admin" : "user";
+                          void setRole(account.email, next);
+                        }}
+                        className="rounded-inner border border-line px-2 py-1 text-[13px] bg-transparent"
+                      >
+                        <option value="user">Seller</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      roleLabel(account.role)
+                    )}
+                  </td>
+                  <td className="py-2 pr-3">{account.plan === "unlimited" ? "Unlimited" : account.balance}</td>
+                  <td className="py-2 pr-3">
+                    {creativeSummary(account.creatives)}
+                    {account.brandCount > 0 ? (
+                      <div className="text-[11px] text-[var(--ink-3)]">Brand saved</div>
+                    ) : null}
+                  </td>
+                  <td className="py-2 pr-3 text-[12px] text-[var(--ink-3)]">
+                    {account.lastCreativeAt
+                      ? new Date(account.lastCreativeAt).toLocaleDateString("en-GB")
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="rounded-card border border-[var(--line)] bg-[var(--card)] p-5 mb-5 shadow-[var(--shadow)]">
         <h2 className="font-display text-[18px] m-0 mb-3">Create invites</h2>
@@ -277,31 +378,6 @@ export function AdminView({ initialInvites, initialWaitlist, initialUsers }: Pro
           </label>
           <Button type="submit">Adjust credits</Button>
         </form>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[13px] text-left">
-            <thead className="font-mono text-[10px] uppercase text-[var(--ink-3)]">
-              <tr>
-                <th className="py-2 pr-3">User</th>
-                <th className="py-2 pr-3">Plan</th>
-                <th className="py-2 pr-3">Balance</th>
-                <th className="py-2 pr-3">Role</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-t border-[var(--line)]">
-                  <td className="py-2 pr-3">
-                    <div>{u.name}</div>
-                    <div className="text-[11px] text-[var(--ink-3)]">{u.email}</div>
-                  </td>
-                  <td className="py-2 pr-3">{u.plan}</td>
-                  <td className="py-2 pr-3">{u.balance}</td>
-                  <td className="py-2 pr-3">{u.role}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </section>
     </div>
   );

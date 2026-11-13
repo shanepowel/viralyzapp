@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 import type { User } from "@/generated/prisma/client";
 import { grant } from "@/lib/credits";
-import { isAdminEmail, isClerkEnabled, isInviteOnly } from "@/lib/env";
+import { isClerkEnabled, isInviteOnly } from "@/lib/env";
 import { consumeInvite } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
+import { promotedRole, roleForNewAccount } from "@/lib/roles";
 import { parseSession } from "@/lib/session-cookie";
 
 const AUTH_COOKIE = "viralyz_session";
@@ -19,6 +20,14 @@ export type AppUser = {
   clerkUserId: string | null;
   avatarUrl: string | null;
 };
+
+/** Promotes staff-list addresses. A normal seller is returned unchanged. */
+export async function ensureStaffRole<T extends { id: string; email: string; role: string }>(user: T): Promise<T> {
+  const next = promotedRole(user.email, user.role);
+  if (next === user.role) return user;
+  await prisma.user.update({ where: { id: user.id }, data: { role: next } });
+  return { ...user, role: next };
+}
 
 export function toAppUser(user: User): AppUser {
   return {
@@ -50,7 +59,7 @@ export async function upsertUserFromClerk(input: {
   const email = input.email.toLowerCase();
 
   const existingByClerk = await prisma.user.findUnique({ where: { clerkUserId: input.clerkUserId } });
-  if (existingByClerk) return toAppUser(existingByClerk);
+  if (existingByClerk) return ensureStaffRole(toAppUser(existingByClerk));
 
   const existingByEmail = await prisma.user.findUnique({ where: { email } });
   if (existingByEmail) {
@@ -59,11 +68,11 @@ export async function upsertUserFromClerk(input: {
       data: {
         clerkUserId: input.clerkUserId,
         name: existingByEmail.name || input.name,
-        role: isAdminEmail(email) ? "admin" : existingByEmail.role,
+        role: promotedRole(email, existingByEmail.role),
         emailVerifiedAt: existingByEmail.emailVerifiedAt ?? new Date(),
       },
     });
-    return toAppUser(linked);
+    return ensureStaffRole(toAppUser(linked));
   }
 
   if (isInviteOnly()) {
@@ -78,7 +87,8 @@ export async function upsertUserFromClerk(input: {
   const handleTaken = await prisma.user.findUnique({ where: { handle: handleBase } });
   const handle = handleTaken ? `${handleBase}${Math.floor(Math.random() * 900 + 100)}` : handleBase;
 
-  const openingBalance = isAdminEmail(email) ? 999 : 10;
+  const role = roleForNewAccount(email);
+  const openingBalance = role === "user" ? 10 : 999;
   const created = await prisma.user.create({
     data: {
       email,
@@ -86,8 +96,8 @@ export async function upsertUserFromClerk(input: {
       handle,
       passwordHash: null,
       clerkUserId: input.clerkUserId,
-      plan: isAdminEmail(email) ? "unlimited" : "credits",
-      role: isAdminEmail(email) ? "admin" : "user",
+      plan: role === "user" ? "credits" : "unlimited",
+      role,
       emailVerifiedAt: new Date(),
       inviteCodeUsed: input.inviteCode?.trim().toUpperCase() ?? null,
       onboardingDone: false,
@@ -95,7 +105,7 @@ export async function upsertUserFromClerk(input: {
   });
   await grant(created.id, openingBalance, "opening balance");
 
-  return toAppUser(created);
+  return ensureStaffRole(toAppUser(created));
 }
 
 export type ClerkIdentity = {
@@ -151,7 +161,7 @@ export async function resolveAppUser(): Promise<AppUser | null> {
   const clerk = lookup;
   if (clerk) {
     const byClerk = await prisma.user.findUnique({ where: { clerkUserId: clerk.clerkUserId } });
-    if (byClerk) return toAppUser(byClerk);
+    if (byClerk) return ensureStaffRole(toAppUser(byClerk));
 
     const byEmail = await prisma.user.findUnique({ where: { email: clerk.email.toLowerCase() } });
     if (byEmail) {
@@ -175,5 +185,5 @@ export async function resolveAppUser(): Promise<AppUser | null> {
   const cookie = await sessionFromCookie();
   if (!cookie) return null;
   const user = await prisma.user.findUnique({ where: { id: cookie.userId } });
-  return user ? toAppUser(user) : null;
+  return user ? ensureStaffRole(toAppUser(user)) : null;
 }
