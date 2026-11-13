@@ -1,6 +1,6 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { hasS3 } from "@/lib/env";
 
 export type StoredObject = {
@@ -87,4 +87,28 @@ export async function storeUpload(opts: {
 
 export function storageBackend() {
   return hasS3() ? "s3" : "local";
+}
+
+function localUploadPath(storageKey: string): string | null {
+  const uploadsRoot = path.resolve(process.cwd(), "public", "uploads");
+  const file = path.resolve(uploadsRoot, storageKey);
+  if (file !== uploadsRoot && !file.startsWith(`${uploadsRoot}${path.sep}`)) return null;
+  return file;
+}
+
+/** Reads a previously stored composite. Local disk, or S3 when that backend is configured. */
+export async function readStoredObject(storageKey: string): Promise<Buffer | null> {
+  if (hasS3()) {
+    const bucket = process.env.S3_BUCKET!.trim();
+    const res = await s3Client().send(new GetObjectCommand({ Bucket: bucket, Key: storageKey }));
+    if (!res.Body) return null;
+    return Buffer.from(await res.Body.transformToByteArray());
+  }
+  const file = localUploadPath(storageKey);
+  if (!file) return null;
+  try {
+    return await readFile(file);
+  } catch {
+    return null;
+  }
 }

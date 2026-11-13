@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CheckChip, type CheckState } from "@/components/ui/CheckChip";
 import { PreflightBadge } from "@/components/ui/PreflightBadge";
+import { PLACEMENTS } from "@/lib/preflight/placements";
+import type { Placement } from "@/lib/preflight/types";
 
 export type FactorResultDTO = {
   id: string;
@@ -51,6 +53,19 @@ const PLACEMENT_RATIO: Record<string, string> = {
   story_9x16: "9 / 16",
   tiktok_9x16: "9 / 16",
 };
+
+function safeZonePct(placement: string): { top: number; right: number; bottom: number; left: number } | null {
+  const spec = PLACEMENTS[placement as Placement["id"]];
+  if (!spec) return null;
+  const { safeZone, width, height } = spec;
+  if (safeZone.top + safeZone.right + safeZone.bottom + safeZone.left === 0) return null;
+  return {
+    top: (safeZone.top / height) * 100,
+    right: (safeZone.right / width) * 100,
+    bottom: (safeZone.bottom / height) * 100,
+    left: (safeZone.left / width) * 100,
+  };
+}
 
 const ANGLE_LABELS: Record<string, string> = {
   offer: "Offer",
@@ -126,6 +141,7 @@ export function VariantCard({
   const [showChecks, setShowChecks] = useState(false);
   const latestCheck = creative.checks[0];
   const busy = creative.status === "pending" || creative.status === "generating";
+  const safeZone = safeZonePct(creative.placement);
   const scored = latestCheck?.factors.filter((f) => f.status === "scored" && f.kind !== "model") ?? [];
   const passed = scored.filter((f) => f.passed).length;
 
@@ -142,9 +158,9 @@ export function VariantCard({
 
   return (
     <article className="bg-card border border-line rounded-card overflow-hidden flex flex-col">
-      <div className="bg-panel dots p-4 flex items-center justify-center">
+      <div className="bg-panel dots p-4">
         <div
-          className={`h-[300px] max-w-full rounded-inner overflow-hidden flex items-center justify-center border border-line bg-card ${
+          className={`relative w-full rounded-inner overflow-hidden border border-line bg-card ${
             busy ? "vz-shimmer" : ""
           }`}
           style={{ aspectRatio: PLACEMENT_RATIO[creative.placement] ?? "1 / 1" }}
@@ -154,15 +170,39 @@ export function VariantCard({
             <img
               src={creative.compositeUrl}
               alt={creative.headline ?? "Generated ad"}
-              className="w-full h-full object-cover"
+              className="absolute inset-0 h-full w-full object-contain"
             />
-          ) : creative.status === "failed" ? (
-            <CheckChip state="fail" label="Generation failed" />
           ) : (
-            <span className="px-3 text-center text-[12px] text-muted">
-              {creative.status === "pending" ? "Queued…" : busy ? "Generating…" : "No image stored"}
-            </span>
+            <div className="absolute inset-0 flex items-center justify-center px-3 text-center">
+              {creative.status === "failed" ? (
+                <span className="text-[12px] text-muted">Generation failed. Any reserved credit was returned.</span>
+              ) : (
+                <span className="text-[12px] text-muted">
+                  {creative.status === "pending" ? "Queued…" : busy ? "Generating…" : "No image stored"}
+                </span>
+              )}
+            </div>
           )}
+          {safeZone ? (
+            <>
+              <div
+                className="pointer-events-none absolute inset-x-0 top-0 border-b border-dashed border-white/90 bg-black/35"
+                style={{ height: `${safeZone.top}%` }}
+              />
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 border-t border-dashed border-white/90 bg-black/35"
+                style={{ height: `${safeZone.bottom}%` }}
+              />
+              <div
+                className="pointer-events-none absolute left-0 border-r border-dashed border-white/90 bg-black/35"
+                style={{ top: `${safeZone.top}%`, bottom: `${safeZone.bottom}%`, width: `${safeZone.left}%` }}
+              />
+              <div
+                className="pointer-events-none absolute right-0 border-l border-dashed border-white/90 bg-black/35"
+                style={{ top: `${safeZone.top}%`, bottom: `${safeZone.bottom}%`, width: `${safeZone.right}%` }}
+              />
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -176,13 +216,20 @@ export function VariantCard({
             <button
               type="button"
               onClick={() => void copyTag()}
-              title="Copy the tracking tag. Put it in the ad name so Results can match spend back to this variant."
+              title="Copy the tracking tag"
               className="text-[12px] font-semibold text-ink bg-panel rounded-full px-2.5 py-0.5 border-none cursor-pointer tabular"
             >
               {copied ? "Copied" : creative.tag}
             </button>
           ) : null}
         </div>
+
+        {creative.tag ? (
+          <p className="m-0 text-[12px] leading-snug text-muted">
+            Put this <span className="font-semibold text-ink">vz_</span> tag in the ad name. Results only matches a
+            row when the ad name contains it.
+          </p>
+        ) : null}
 
         {latestCheck ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -239,10 +286,7 @@ export function VariantCard({
         <div className="mt-auto flex flex-wrap gap-2 pt-1">
           {creative.compositeUrl ? (
             <a
-              href={creative.compositeUrl}
-              download={`${creative.tag || "viralyz-ad"}.png`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/api/studio/creatives/${creative.id}/download`}
               className="btn-primary inline-flex min-h-9 items-center gap-1.5 rounded-full bg-btn px-3.5 text-[13px] font-semibold text-btn-ink"
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" />

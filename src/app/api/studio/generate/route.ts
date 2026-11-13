@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSession } from "@/lib/api";
 import { balance, reserve } from "@/lib/credits";
@@ -95,7 +95,9 @@ export async function POST(req: Request) {
     creativeIds.push(creative.id);
     const queued = await enqueueStudioJob(creative.id);
     if (!queued) {
-      void processCreativeJob(creative.id);
+      // Keep the inline run alive after the response. If the isolate dies
+      // first, the creative stays open and the next read fails it and refunds.
+      after(() => processCreativeJob(creative.id));
     }
   }
 

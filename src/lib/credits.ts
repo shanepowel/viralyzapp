@@ -92,10 +92,12 @@ export async function settle(refId: string): Promise<void> {
  * it can never exceed it.
  */
 export async function refund(refId: string): Promise<void> {
-  const reserved = await prisma.creditLedger.findUnique({
-    where: { refId_kind: { refId, kind: "reserve" } },
-  });
-  if (!reserved) return;
+  const [reserved, settled] = await Promise.all([
+    prisma.creditLedger.findUnique({ where: { refId_kind: { refId, kind: "reserve" } } }),
+    prisma.creditLedger.findUnique({ where: { refId_kind: { refId, kind: "settle" } } }),
+  ]);
+  // A settled reservation was spent on a finished creative.
+  if (!reserved || settled) return;
 
   try {
     await prisma.creditLedger.create({

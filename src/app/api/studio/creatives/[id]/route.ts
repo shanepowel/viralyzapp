@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/api";
+import { failStuckCreative } from "@/lib/generation";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export async function GET(_req: Request, { params }: Params) {
   if (auth.error) return auth.error;
 
   const { id } = await params;
+  await failStuckCreative(id);
   const creative = await prisma.creative.findFirst({
     where: { id, userId: auth.session.userId },
     include: { checks: { orderBy: { computedAt: "desc" }, take: 1 } },

@@ -59,6 +59,20 @@ describe("credits", () => {
     expect(await balance(userId)).toBe(10);
   });
 
+  it("refund after settle is a no-op", async () => {
+    await grant(userId, 10, "opening balance");
+    const refId = randomUUID();
+    await reserve(userId, 4, refId);
+    await settle(refId);
+    expect(await balance(userId)).toBe(6);
+
+    await refund(refId);
+    expect(await balance(userId)).toBe(6);
+
+    const rows = await prisma.creditLedger.findMany({ where: { refId } });
+    expect(rows.some((r) => r.kind === "refund")).toBe(false);
+  });
+
   it("settle after refund is a no-op", async () => {
     await grant(userId, 10, "opening balance");
     const refId = randomUUID();

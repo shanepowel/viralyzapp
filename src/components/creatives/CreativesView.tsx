@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { PLACEMENT_LABELS, VariantCard, type CreativeDTO } from "@/components/studio/VariantCard";
@@ -52,6 +52,16 @@ export function CreativesView({
     void tick();
   }
 
+  useEffect(() => {
+    for (const creative of initialCreatives) {
+      if (creative.status === "pending" || creative.status === "generating") {
+        pollCreative(creative.id);
+      }
+    }
+    // Poll each open creative from the server render. Regenerations poll themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function regenerate(creative: CreativeDTO) {
     setRegeneratingId(creative.id);
     setError(null);
@@ -75,7 +85,17 @@ export function CreativesView({
       }
       const [newId] = data.creativeIds as string[];
       setCreatives((prev) => [
-        { ...creative, id: newId, tag: "", status: "pending", compositeUrl: null, checks: [] },
+        {
+          ...creative,
+          id: newId,
+          tag: "",
+          status: "pending",
+          headline: null,
+          primaryText: null,
+          cta: null,
+          compositeUrl: null,
+          checks: [],
+        },
         ...prev.filter((c) => c.id !== creative.id),
       ]);
       pollCreative(newId);
