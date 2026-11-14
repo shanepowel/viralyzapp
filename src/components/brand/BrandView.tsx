@@ -5,6 +5,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { FieldLabel, inputClasses } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SAMPLE_BRAND } from "@/lib/samples";
 
 // Same rule as compose.ts: only hex colours reach the ad, anything else is ignored there.
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -171,6 +172,24 @@ export function BrandView({ importUrl = null }: { importUrl?: string | null }) {
     }
   }
 
+  /** Fills the form with a fictional brand so the product can be tried before importing a real one. */
+  function fillSampleBrand() {
+    setImportError(null);
+    setUrl("");
+    setVoice(SAMPLE_BRAND.voice);
+    setLogoUrl("");
+    setDraft({
+      name: SAMPLE_BRAND.name,
+      title: SAMPLE_BRAND.product.title,
+      price: SAMPLE_BRAND.product.price,
+      currency: SAMPLE_BRAND.product.currency,
+      imageUrls: [],
+      colors: [...SAMPLE_BRAND.colors],
+    });
+    // The image generator fetches this link, so it has to be absolute.
+    setImageUrl(`${window.location.origin}${SAMPLE_BRAND.product.image}`);
+  }
+
   function setColor(i: number, value: string) {
     setDraft((d) => ({ ...d, colors: d.colors.map((c, j) => (j === i ? value : c)) }));
   }
@@ -232,6 +251,19 @@ export function BrandView({ importUrl = null }: { importUrl?: string | null }) {
               </div>
               {importError && (
                 <Notice tone="error">{importError} You can fill in the details below by hand instead.</Notice>
+              )}
+              {editingSaved ? null : (
+                <p className="m-0 text-[13px] text-ink-2">
+                  No shop yet?{" "}
+                  <button
+                    type="button"
+                    onClick={fillSampleBrand}
+                    className="min-h-9 cursor-pointer border-0 bg-transparent p-0 text-[13px] font-semibold text-ink underline underline-offset-4"
+                  >
+                    Fill in a sample brand
+                  </button>{" "}
+                  (Halden, a fictional skincare brand) and change it later.
+                </p>
               )}
             </div>
           </div>

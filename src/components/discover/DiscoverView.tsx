@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { FieldLabel, inputClasses } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SAMPLE_REFERENCES } from "@/lib/samples";
 
 type DiscoverReference = {
   id: string;
@@ -191,6 +192,30 @@ export function DiscoverView({
     else setError("Could not remove that reference.");
   }
 
+  const [usingSample, setUsingSample] = useState<string | null>(null);
+  /** Saves a built-in sample as the user's own reference, then opens Studio with it. */
+  async function openSample(id: string) {
+    setUsingSample(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/references/sample", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError("Could not open that sample.");
+        return;
+      }
+      router.push(`/studio?reference=${encodeURIComponent(data.reference.id)}`);
+    } catch {
+      setError("Could not open that sample.");
+    } finally {
+      setUsingSample(null);
+    }
+  }
+
   const showingMine = source === MINE;
   const groups = groupByHook(items);
 
@@ -316,11 +341,56 @@ export function DiscoverView({
             <p className="m-0 mt-2 max-w-[520px] text-[14px] text-ink-2">
               {showingMine
                 ? "Paste a link or upload an image or video above. It stays private to your account."
-                : "Loosen a filter, try another source, or add an ad you like as your own reference."}
+                : "Loosen a filter, add an ad you like as your own reference, or start from one of the samples below."}
             </p>
           </div>
         </div>
       )}
+
+      {/* Samples: only while there is nothing live to show, and always labelled. */}
+      {!loading && !error && items.length === 0 && !showingMine ? (
+        <section aria-label="Sample references" className="pt-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-rule pb-2">
+            <h2 className="font-display m-0 text-[22px]">Samples to try it with</h2>
+            <p className="m-0 font-mono text-[12px] text-muted">
+              Fictional brands, drawn for Viralyz. Not real ads.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 items-start gap-x-4 gap-y-7 pt-4 sm:grid-cols-3 lg:grid-cols-6">
+            {SAMPLE_REFERENCES.map((sample) => (
+              <article key={sample.id} className="flex min-w-0 flex-col">
+                <div className="relative aspect-[4/5] overflow-hidden border border-rule bg-panel">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={sample.image}
+                    alt={`Sample ad for ${sample.advertiser}, a fictional brand`}
+                    className="h-full w-full object-contain"
+                  />
+                  <span className="absolute left-0 top-0 bg-ink px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-bg">
+                    Sample
+                  </span>
+                </div>
+                <div className="mt-2 truncate text-[14px] font-semibold text-ink">{sample.advertiser}</div>
+                <div className="mt-0.5 text-[12.5px] text-ink-2 first-letter:uppercase">
+                  {[sample.structure.hookType, sample.structure.offerType, sample.structure.layout]
+                    .filter((p) => p !== "none")
+                    .map((p) => p.replace(/_/g, " "))
+                    .join(", ")}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2.5 self-start"
+                  onClick={() => void openSample(sample.id)}
+                  disabled={usingSample !== null}
+                >
+                  {usingSample === sample.id ? "Opening…" : "Use this structure"}
+                </Button>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {groups.map((group) => (
         <section key={group.hook ?? "none"} aria-label={group.hook ?? "Structure not read"} className="pt-8">
