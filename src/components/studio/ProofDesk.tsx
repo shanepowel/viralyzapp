@@ -11,6 +11,7 @@ import {
   safeZonePct,
   type CreativeDTO,
   type FactorResultDTO,
+  type FixAction,
 } from "@/components/studio/proof";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Segmented";
@@ -64,7 +65,9 @@ function ClearedRow({ factor }: { factor: FactorResultDTO }) {
       </svg>
       <div className="min-w-0">
         <span className="text-[13px] font-medium text-ink">{cleanLabel(factor)}</span>
-        <span className="ml-2 text-[12px] text-muted">{factor.evidence}</span>
+        <span className="ml-2 text-[12px] text-muted">
+          {factor.kind === "rule" ? "No match in the wording" : factor.evidence}
+        </span>
       </div>
     </li>
   );
@@ -78,20 +81,29 @@ function ClearedRow({ factor }: { factor: FactorResultDTO }) {
 export function ProofDesk({
   creative,
   onRegenerate,
+  onFix,
+  fixing = false,
   regenerating = false,
   regenerateDisabled = false,
   creditsPerVariant,
 }: {
   creative: CreativeDTO;
   onRegenerate: () => void;
+  /** Rewrite the wording over the same image, or undo the last rewrite. */
+  onFix?: (action: FixAction) => void;
+  fixing?: boolean;
   regenerating?: boolean;
   /** True when generation is unavailable, so a click could never succeed. */
   regenerateDisabled?: boolean;
   creditsPerVariant?: number;
 }) {
-  const [view, setView] = useState<View>("feed");
-  const [tagCopied, copyTag] = useCopied();
   const proof = readProof(creative);
+  const onAd = proof.marks.filter((m) => m.box);
+  // Open on the artboard when there is something marked on the ad to look at.
+  const [view, setView] = useState<View>(onAd.length > 0 ? "artboard" : "feed");
+  const [tagCopied, copyTag] = useCopied();
+  const wordingMarks = proof.marks.filter((m) => m.wording);
+  const rewritten = Boolean(creative.checks[0]?.rewritten);
   const pixels = placementPixels(creative.placement);
   const hasZone = safeZonePct(creative.placement) !== null;
   const tall = creative.placement.endsWith("9x16");
@@ -164,13 +176,14 @@ export function ProofDesk({
       <div className="grid grid-cols-1 gap-x-10 gap-y-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
         <div className={`flex justify-center ${view === "artboard" ? "bg-panel p-6" : ""}`}>
           <div className={`w-full ${tall ? "max-w-[340px]" : "max-w-[520px]"}`}>
-            <AdProof creative={creative} guides={view === "artboard"} />
+            <AdProof creative={creative} guides={view === "artboard"} marks={view === "artboard" ? proof.marks : []} />
             {view === "artboard" ? (
               <p className="m-0 mt-2 font-mono text-[11px] text-muted">
                 {pixels ? `${pixels} px. ` : ""}
                 {hasZone
                   ? "Blue is the platform's safe zone: keep text and the logo inside it."
                   : "Feed placements have no overlay, so there is no safe zone to keep clear."}
+                {onAd.length > 0 ? " Red boxes are the numbered marks." : ""}
               </p>
             ) : null}
           </div>
@@ -198,6 +211,14 @@ export function ProofDesk({
                     </p>
                     <p className="m-0 mt-0.5 text-[14px] font-semibold text-ink">{cleanLabel(mark.factor)}</p>
                     <p className="margin-note m-0 mt-1">{mark.factor.evidence}</p>
+                    <p className="m-0 mt-1 font-mono text-[11px] text-muted">
+                      {mark.box
+                        ? `Marked on the ${mark.box.role === "cta" ? "button" : mark.box.role}.`
+                        : mark.wording
+                          ? "In the text that runs beside the ad, not on the image."
+                          : ""}
+                      {mark.wording ? " A rewrite can clear it." : ""}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -269,19 +290,42 @@ export function ProofDesk({
                 Download held
               </Button>
             ) : null}
+            {canRegenerate && onFix && wordingMarks.length > 0 ? (
+              <Button variant="mark" onClick={() => onFix("rewrite")} disabled={fixing || regenerating}>
+                {fixing
+                  ? "Rewriting…"
+                  : `Rewrite the wording to clear ${wordingMarks.length === 1 ? "it" : `${wordingMarks.length} marks`}, free`}
+              </Button>
+            ) : null}
             {canRegenerate ? (
               <Button
-                variant={proof.marks.length > 0 || creative.status === "failed" ? "mark" : "outline"}
+                variant={
+                  (proof.marks.length > 0 && wordingMarks.length === 0) || creative.status === "failed"
+                    ? "mark"
+                    : "outline"
+                }
                 onClick={onRegenerate}
-                disabled={regenerating || regenerateDisabled}
+                disabled={regenerating || regenerateDisabled || fixing}
               >
                 {regenerating ? "Making…" : `Make it again${cost}`}
               </Button>
             ) : null}
+            {onFix && rewritten ? (
+              <Button variant="ghost" onClick={() => onFix("undo")} disabled={fixing || regenerating}>
+                Undo the rewrite
+              </Button>
+            ) : null}
           </div>
+          {rewritten ? (
+            <p className="m-0 mt-2 text-[13px] text-ink-2">
+              The wording was rewritten over the same image. No credit was spent.
+            </p>
+          ) : null}
           {blocked ? (
             <p id={`blocked-${creative.id}`} className="margin-note m-0 mt-2">
-              Make it again to get wording that clears the rule.
+              {wordingMarks.length > 0 && onFix
+                ? "Rewrite the wording to clear the rule. The image stays the same."
+                : "Make it again to get wording that clears the rule."}
             </p>
           ) : null}
           {creative.aiGenerated ? (

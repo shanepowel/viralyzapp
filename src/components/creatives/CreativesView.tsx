@@ -7,8 +7,10 @@ import {
   ANGLE_LABELS,
   PLACEMENT_LABELS,
   readProof,
+  requestFix,
   toCreativeDTO,
   type CreativeDTO,
+  type FixAction,
 } from "@/components/studio/proof";
 import { ButtonLink } from "@/components/ui/Button";
 import { inputClasses } from "@/components/ui/Field";
@@ -39,6 +41,7 @@ export function CreativesView({
   const [placement, setPlacement] = useState("all");
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [fixingId, setFixingId] = useState<string | null>(null);
 
   const counts = useMemo(
     () => ({
@@ -130,6 +133,18 @@ export function CreativesView({
     }
   }
 
+  async function fix(target: CreativeDTO, action: FixAction) {
+    setFixingId(target.id);
+    setError(null);
+    const result = await requestFix(target.id, action);
+    setFixingId(null);
+    if ("error" in result) {
+      setError(result.error);
+      return;
+    }
+    setCreatives((prev) => prev.map((c) => (c.id === target.id ? result.creative : c)));
+  }
+
   if (creatives.length === 0) {
     return (
       <div className="grid grid-cols-1 gap-6 border-y border-rule py-10 md:grid-cols-[200px_1fr]">
@@ -172,9 +187,11 @@ export function CreativesView({
             </button>
           </div>
           <ProofDesk
-            key={open.id}
+            key={`${open.id}:${open.compositeUrl ?? ""}`}
             creative={open}
             onRegenerate={() => void regenerate(open)}
+            onFix={(action) => void fix(open, action)}
+            fixing={fixingId === open.id}
             regenerating={regeneratingId === open.id}
             regenerateDisabled={!generationAvailable}
             creditsPerVariant={creditsPerVariant}

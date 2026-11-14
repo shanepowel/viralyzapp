@@ -23,7 +23,7 @@
   --vz-rule: #111110;
   --vz-ink: #111110;
   --vz-ink-2: #3b3b38;
-  --vz-muted: #6a6a66;
+  --vz-muted: #62625e;
   --vz-btn: #111110;
   --vz-btn-ink: #f4f4f1;
   --vz-inv: #111110;
@@ -32,10 +32,10 @@
   --vz-inv-line: rgb(244 244 241 / 0.2);
   --vz-inv-raised: rgb(244 244 241 / 0.06);
   --vz-scrim: rgb(17 17 16 / 0.45);
-  --vz-pass: #0e7c47;
-  --vz-pass-bg: rgb(14 124 71 / 0.08);
-  --vz-mark: #c8321a;
-  --vz-mark-bg: rgb(200 50 26 / 0.07);
+  --vz-pass: #0b6f3f;
+  --vz-pass-bg: rgb(11 111 63 / 0.08);
+  --vz-mark: #b82d17;
+  --vz-mark-bg: rgb(184 45 23 / 0.07);
   --vz-guide: #2462c4;
   --vz-warn: var(--vz-mark);
   --vz-warn-bg: var(--vz-mark-bg);

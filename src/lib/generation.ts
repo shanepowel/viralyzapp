@@ -24,7 +24,7 @@ export function generationAvailable(): boolean {
 }
 
 /** Bump only in a versioned offline release — never per user. */
-const CHECK_VERSION = 1;
+export const CHECK_VERSION = 1;
 
 function placementToAspect(id: Placement["id"]): "1:1" | "4:5" | "9:16" {
   switch (id) {
@@ -42,7 +42,7 @@ function placementToAspect(id: Placement["id"]): "1:1" | "4:5" | "9:16" {
   }
 }
 
-function formatPrice(price: unknown, currency: string | null): string {
+export function formatPrice(price: unknown, currency: string | null): string {
   const amount = Number(price);
   const symbol = !currency || currency === "USD" ? "$" : `${currency} `;
   return `${symbol}${amount.toFixed(2)}`;
@@ -331,6 +331,7 @@ async function runGeneration(
       factors: factors as unknown as Prisma.InputJsonValue,
       headline,
       headlineBasis: { counted, total },
+      layout: layout as unknown as Prisma.InputJsonValue,
     },
   });
   await settle(creative.id);

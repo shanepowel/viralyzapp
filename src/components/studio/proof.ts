@@ -11,6 +11,18 @@ export type FactorResultDTO = {
   evidence: string;
 };
 
+export type LayoutBoxDTO = {
+  role: "headline" | "price" | "cta";
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  overflowed: boolean;
+  text: string;
+};
+
+export type LayoutDTO = { width: number; height: number; textBoxes: LayoutBoxDTO[] };
+
 export type CreativeDTO = {
   id: string;
   tag: string;
@@ -29,6 +41,10 @@ export type CreativeDTO = {
     headline: number | null;
     headlineBasis: { counted: number; total: number };
     factors: FactorResultDTO[];
+    /** Where each piece of text sits. Absent on ads checked before this was recorded. */
+    layout?: LayoutDTO | null;
+    /** True when this check came from a wording rewrite, which can be undone. */
+    rewritten?: boolean;
   }>;
 };
 
@@ -107,7 +123,40 @@ export function cleanLabel(factor: FactorResultDTO): string {
   return factor.label.replace(/ \(AI-assessed\)$/, "");
 }
 
-export type Mark = { n: number; factor: FactorResultDTO; rule: { no: number; name: string }; blocking: boolean };
+export type Mark = {
+  n: number;
+  factor: FactorResultDTO;
+  rule: { no: number; name: string };
+  blocking: boolean;
+  /** The text box the mark points at, when the problem is on the image. */
+  box: LayoutBoxDTO | null;
+  /** New wording can clear it without making a new image. */
+  wording: boolean;
+};
+
+/** Same rule as the server (lib/fix): the marks a rewrite can clear. */
+function isWordingMark(f: FactorResultDTO): boolean {
+  if (f.kind === "rule" || f.id === "char_limits") return true;
+  return f.id === "safe_zone" && /overflow/i.test(f.evidence);
+}
+
+/** Finds the text box a failed check is about, from what the check reported. */
+function boxFor(f: FactorResultDTO, layout: LayoutDTO | null | undefined): LayoutBoxDTO | null {
+  const boxes = layout?.textBoxes ?? [];
+  if (boxes.length === 0) return null;
+  const byRole = (role: string) => boxes.find((b) => b.role === role) ?? null;
+  if (f.id === "char_limits") return byRole("headline");
+  if (f.id === "contrast" || f.id === "safe_zone") {
+    const role = f.evidence.match(/^(headline|price|cta)\b/i)?.[1]?.toLowerCase();
+    return role ? byRole(role) : null;
+  }
+  if (f.kind === "rule") {
+    // Evidence starts with the matched phrase in quotes. Primary text is not on the image.
+    const phrase = f.evidence.match(/^"([^"]+)"/)?.[1]?.toLowerCase();
+    return phrase ? (boxes.find((b) => b.text.toLowerCase().includes(phrase)) ?? null) : null;
+  }
+  return null;
+}
 
 export type Proof = {
   verdict: "checking" | "failed" | "blocked" | "fix" | "cleared" | "unchecked";
@@ -127,7 +176,14 @@ export function readProof(creative: CreativeDTO): Proof {
     .filter((f) => !f.passed)
     // Policy first: it is the one kind of mark that stops a download.
     .sort((a, b) => Number(b.kind === "rule") - Number(a.kind === "rule"))
-    .map((factor, i) => ({ n: i + 1, factor, rule: ruleFor(factor), blocking: factor.kind === "rule" }));
+    .map((factor, i) => ({
+      n: i + 1,
+      factor,
+      rule: ruleFor(factor),
+      blocking: factor.kind === "rule",
+      box: boxFor(factor, creative.checks[0]?.layout),
+      wording: isWordingMark(factor),
+    }));
   const proof = {
     marks,
     cleared: measured.filter((f) => f.passed),
@@ -175,7 +231,7 @@ type RawCreative = {
   cta: string | null;
   compositeUrl: string | null;
   aiGenerated: boolean;
-  checks: Array<{ headline: number | null; headlineBasis: unknown; factors: unknown }>;
+  checks: Array<{ headline: number | null; headlineBasis: unknown; factors: unknown; layout?: unknown; fix?: unknown }>;
 };
 
 /** API and database rows to the shape the screens use. */
@@ -197,6 +253,38 @@ export function toCreativeDTO(raw: RawCreative): CreativeDTO {
       headline: c.headline,
       headlineBasis: c.headlineBasis as { counted: number; total: number },
       factors: c.factors as FactorResultDTO[],
+      layout: (c.layout as LayoutDTO | null | undefined) ?? null,
+      rewritten: Boolean(c.fix),
     })),
   };
+}
+
+export type FixAction = "rewrite" | "undo";
+
+const FIX_ERRORS: Record<string, string> = {
+  nothing_to_fix: "There is no wording problem on this ad to rewrite.",
+  nothing_to_undo: "There is no rewrite to undo.",
+  rewrite_limit: "This ad has been rewritten three times. Make it again to start fresh.",
+  unavailable: "Rewriting is switched off: the copy service is not configured.",
+  background_missing: "The image behind this ad is no longer stored, so it cannot be rewritten. Make it again instead.",
+  not_ready: "This ad is still being made.",
+};
+
+/** Rewrites the wording over the same image, or undoes the last rewrite. Spends no credit. */
+export async function requestFix(
+  id: string,
+  action: FixAction,
+): Promise<{ creative: CreativeDTO } | { error: string }> {
+  try {
+    const res = await fetch(`/api/studio/creatives/${id}/fix`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: FIX_ERRORS[data.error] ?? "Could not change this ad. Nothing was charged." };
+    return { creative: toCreativeDTO(data.creative) };
+  } catch {
+    return { error: "Could not change this ad. Nothing was charged." };
+  }
 }

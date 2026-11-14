@@ -35,6 +35,11 @@ export type WriteCopyInput = {
   product: Pick<Product, "title" | "price" | "currency">;
   reference: RefStructure | null;
   angle: Angle;
+  /**
+   * Set when rewriting copy that failed a check: the limits to stay inside
+   * and, in plain words, what was wrong with the last attempt.
+   */
+  rewrite?: { headlineMax: number; primaryMax: number; problems: string[] };
 };
 
 /**
@@ -61,6 +66,15 @@ export async function writeCopy(input: WriteCopyInput): Promise<Copy> {
     referenceLine,
     `Angle: ${input.angle}. ${ANGLE_GUIDANCE[input.angle]}`,
     "imagePrompt describes only the background image to generate: no text or words rendered in the image, and never a real person's likeness.",
+    ...(input.rewrite
+      ? [
+          `This is a rewrite of copy that failed a check. The headline must be at most ${input.rewrite.headlineMax} characters and the primaryText at most ${input.rewrite.primaryMax} characters, counting spaces.`,
+          "Do not address the reader's personal attributes (health, weight, finances, appearance), do not promise a specific result or a before-and-after, and do not make health or income claims. Describe the product, not the reader.",
+          ...(input.rewrite.problems.length > 0
+            ? [`Problems found in the last version, which the new one must not repeat: ${input.rewrite.problems.join(" | ")}`]
+            : []),
+        ]
+      : []),
   ].join("\n");
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {

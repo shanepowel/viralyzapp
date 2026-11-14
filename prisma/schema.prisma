@@ -241,6 +241,10 @@ model Check {
   factors       Json // FactorResult[]
   headline      Int?
   headlineBasis Json // { counted: number, total: number }
+  /// CompositeLayout: where each text box sits, so marks can be drawn on the ad.
+  layout        Json?
+  /// Set on a check made by a wording rewrite: { kind: "rewrite", previous: {...} } for undo.
+  fix           Json?
   computedAt    DateTime @default(now())
 
   creative Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)

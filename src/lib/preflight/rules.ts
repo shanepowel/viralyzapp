@@ -58,7 +58,7 @@ export function checkPolicy(copy: AdCopy): FactorResult[] {
       kind: "rule" as const,
       status: "scored" as const,
       passed,
-      evidence: passed ? `No match for: ${rule.ruleText}` : `"${match![0]}" — ${rule.ruleText}`,
+      evidence: passed ? `No match for: ${rule.ruleText}` : `"${match![0]}": ${rule.ruleText}`,
     };
   });
 }

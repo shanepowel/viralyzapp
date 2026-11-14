@@ -55,7 +55,7 @@ type SavedBrand = {
   }>;
 };
 
-export function BrandView() {
+export function BrandView({ importUrl = null }: { importUrl?: string | null }) {
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -76,7 +76,16 @@ export function BrandView() {
       const res = await fetch("/api/brand");
       if (!res.ok || cancelled) return;
       const { brand } = (await res.json()) as { brand: SavedBrand | null };
-      if (!brand || cancelled) return;
+      if (cancelled) return;
+      if (!brand) {
+        // Arrived from viralyz.com with a shop link and nothing saved yet:
+        // read the page straight away. A saved brand is never overwritten.
+        if (importUrl) {
+          setUrl(importUrl);
+          void runImport(importUrl);
+        }
+        return;
+      }
       const product = brand.products[0];
       setUrl(brand.sourceUrl ?? "");
       setVoice(brand.voice ?? "");
@@ -96,17 +105,19 @@ export function BrandView() {
     return () => {
       cancelled = true;
     };
+    // Runs once on arrival; importUrl comes from the page's query string.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function runImport() {
-    if (!url.trim()) return;
+  async function runImport(target: string = url) {
+    if (!target.trim()) return;
     setImporting(true);
     setImportError(null);
     try {
       const res = await fetch("/api/brand/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: target }),
       });
       const data = await res.json();
       if (!res.ok) {

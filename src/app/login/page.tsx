@@ -12,9 +12,16 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+type Props = { searchParams: Promise<{ store?: string | string[] }> };
+
+export default async function LoginPage({ searchParams }: Props) {
   const session = await getSession();
   if (session) {
+    // Already signed in and arriving from viralyz.com with a shop link.
+    const { store } = await searchParams;
+    if (typeof store === "string" && /^https?:\/\//i.test(store)) {
+      redirect(`/brand?import=${encodeURIComponent(store)}`);
+    }
     redirect("/studio");
   }
 

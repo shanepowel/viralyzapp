@@ -12,9 +12,11 @@ import {
   PLACEMENT_ORDER,
   PLACEMENT_RATIO,
   readProof,
+  requestFix,
   toCreativeDTO,
   type AngleId,
   type CreativeDTO,
+  type FixAction,
   type PlacementId,
 } from "@/components/studio/proof";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -295,6 +297,19 @@ export function StudioView({
     pollCreative(newId);
   }
 
+  const [fixingId, setFixingId] = useState<string | null>(null);
+  async function fix(target: CreativeDTO, action: FixAction) {
+    setFixingId(target.id);
+    setGenerateError(null);
+    const result = await requestFix(target.id, action);
+    setFixingId(null);
+    if ("error" in result) {
+      setGenerateError(result.error);
+      return;
+    }
+    setCreatives((prev) => ({ ...prev, [target.id]: result.creative }));
+  }
+
   const sheet = useMemo(
     () => order.map((id) => creatives[id]).filter((c): c is CreativeDTO => Boolean(c)),
     [order, creatives],
@@ -500,9 +515,11 @@ export function StudioView({
       {!showBrief && selected ? (
         <>
           <ProofDesk
-            key={selected.id}
+            key={`${selected.id}:${selected.compositeUrl ?? ""}`}
             creative={selected}
             onRegenerate={() => void regenerate(selected)}
+            onFix={(action) => void fix(selected, action)}
+            fixing={fixingId === selected.id}
             regenerating={generating}
             regenerateDisabled={!generationAvailable}
             creditsPerVariant={creditsPerVariant}

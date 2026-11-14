@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { balance } from "@/lib/credits";
 import { isClerkEnabled } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
 import { isStaffRole } from "@/lib/roles";
 import { getClerkIdentity, resolveAppUser } from "@/lib/users";
 
@@ -17,6 +18,11 @@ export async function AppPage({ children }: { children: ReactNode }) {
   }
 
   const userBalance = await balance(user.id);
+  // The first-run strip is for someone who has not set anything up. Once a
+  // brand is confirmed it has done its job, dismissed or not.
+  const hasBrand = user.onboardingDone
+    ? true
+    : (await prisma.brand.count({ where: { userId: user.id, confirmedAt: { not: null } } })) > 0;
 
   return (
     <AppShell
@@ -24,7 +30,7 @@ export async function AppPage({ children }: { children: ReactNode }) {
       plan={user.plan}
       balance={userBalance}
       isAdmin={isStaffRole(user.role)}
-      showOnboarding={!user.onboardingDone}
+      showOnboarding={!user.onboardingDone && !hasBrand}
       clerkEnabled={isClerkEnabled()}
     >
       {children}

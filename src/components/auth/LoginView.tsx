@@ -31,7 +31,11 @@ export function LoginView({
 }: Props) {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || "/studio";
+  // A shop link pasted on viralyz.com rides through sign-in and lands on
+  // Brand with the import already running.
+  const store = search.get("store") ?? "";
+  const storeNext = /^https?:\/\//i.test(store) ? `/brand?import=${encodeURIComponent(store)}` : null;
+  const next = search.get("next") || storeNext || "/studio";
   const resetToken = search.get("reset") ?? "";
   const inviteFromUrl = search.get("invite") ?? "";
   const [mode, setMode] = useState<Mode>(() => {

@@ -1,4 +1,11 @@
-import { PLACEMENT_RATIO, readProof, safeZonePct, verdictWords, type CreativeDTO } from "@/components/studio/proof";
+import {
+  PLACEMENT_RATIO,
+  readProof,
+  safeZonePct,
+  verdictWords,
+  type CreativeDTO,
+  type Mark,
+} from "@/components/studio/proof";
 
 /**
  * The ad itself, drawn as a proof on a white sheet. With guides on, the
@@ -8,12 +15,17 @@ import { PLACEMENT_RATIO, readProof, safeZonePct, verdictWords, type CreativeDTO
 export function AdProof({
   creative,
   guides = false,
+  marks = [],
   className = "",
 }: {
   creative: CreativeDTO;
   guides?: boolean;
+  /** Marks to draw on the ad, at the text they are about. */
+  marks?: Mark[];
   className?: string;
 }) {
+  const layout = creative.checks[0]?.layout;
+  const placed = layout ? marks.filter((m) => m.box) : [];
   const busy = creative.status === "pending" || creative.status === "generating";
   const zone = guides ? safeZonePct(creative.placement) : null;
 
@@ -53,6 +65,33 @@ export function AdProof({
           </span>
         </div>
       ) : null}
+      {layout
+        ? placed.map((m) => {
+            const b = m.box!;
+            return (
+              <div
+                key={m.factor.id}
+                aria-hidden="true"
+                className="pointer-events-none absolute border-2 border-mark"
+                style={{
+                  left: `${(b.x / layout.width) * 100}%`,
+                  top: `${(b.y / layout.height) * 100}%`,
+                  width: `${(b.w / layout.width) * 100}%`,
+                  height: `${(b.h / layout.height) * 100}%`,
+                }}
+              >
+                <span
+                  className={`absolute -right-[11px] ${
+                    // Keep the number on the ad when the box touches the top edge.
+                    b.y / layout.height < 0.04 ? "-bottom-[11px]" : "-top-[11px]"
+                  } inline-flex h-[22px] w-[22px] items-center justify-center rounded-full border border-mark bg-card font-mono text-[11px] font-medium text-mark`}
+                >
+                  {m.n}
+                </span>
+              </div>
+            );
+          })
+        : null}
     </div>
   );
 }
