@@ -6,15 +6,17 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  email: z.string().email(),
-  delta: z
-    .number()
-    .int()
-    .refine((v) => v !== 0, "delta must be nonzero")
-    .optional(),
-  note: z.string().optional(),
-});
+const schema = z
+  .object({
+    email: z.string().email(),
+    delta: z
+      .number()
+      .int()
+      .refine((v) => v !== 0, "delta must be nonzero")
+      .optional(),
+    note: z.string().optional(),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   const auth = await requireAdmin();

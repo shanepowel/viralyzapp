@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hashPassword } from "@/lib/auth";
 import { hashToken } from "@/lib/invites";
+import { passwordResetDeliveryEnabled } from "@/lib/password-reset";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  token: z.string().min(20),
-  password: z.string().min(8).max(100),
-});
+const schema = z
+  .object({
+    token: z.string().min(20),
+    password: z.string().min(8).max(100),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   const ip = clientIp(req);
@@ -28,6 +31,10 @@ export async function POST(req: Request) {
       { error: "Provide a valid reset token and password (8+ chars)." },
       { status: 400 },
     );
+  }
+
+  if (!passwordResetDeliveryEnabled()) {
+    return NextResponse.json({ error: "Reset link is invalid or expired." }, { status: 400 });
   }
 
   const tokenHash = hashToken(parsed.data.token);

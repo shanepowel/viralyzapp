@@ -114,6 +114,29 @@ export type ClerkIdentity = {
   name: string;
 };
 
+type ClerkEmailAddress = {
+  emailAddress?: string | null;
+  verification?: { status?: string | null } | null;
+};
+
+/**
+ * Only a verified inbox can be linked to an account. An unverified Clerk
+ * address must not attach to the super-admin row or create a staff account.
+ */
+export function verifiedClerkEmail(user: {
+  primaryEmailAddress?: ClerkEmailAddress | null;
+  emailAddresses?: ClerkEmailAddress[] | null;
+}): string | null {
+  const primary = user.primaryEmailAddress;
+  if (primary?.verification?.status === "verified" && primary.emailAddress) {
+    return primary.emailAddress;
+  }
+  const verified = user.emailAddresses?.find(
+    (address) => address.verification?.status === "verified" && address.emailAddress,
+  );
+  return verified?.emailAddress ?? null;
+}
+
 /** Distinguishes "not signed in via Clerk" from "Clerk lookup failed". */
 const CLERK_ERROR = Symbol("clerk-error");
 type ClerkLookup = ClerkIdentity | null | typeof CLERK_ERROR;
@@ -126,8 +149,8 @@ async function lookupClerkIdentity(): Promise<ClerkLookup> {
     if (!userId) return null;
     const cu = await currentUser();
     if (!cu) return null;
-    const email = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses?.[0]?.emailAddress;
-    if (!email) return null;
+    const email = verifiedClerkEmail(cu);
+    if (!email) return CLERK_ERROR;
     const name =
       cu.fullName?.trim() ||
       [cu.firstName, cu.lastName].filter(Boolean).join(" ").trim() ||

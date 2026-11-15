@@ -5,9 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  done: z.boolean(),
-});
+const schema = z
+  .object({
+    done: z.boolean(),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();

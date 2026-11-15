@@ -2,14 +2,17 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { hashToken, rawToken } from "@/lib/invites";
+import { passwordResetBody, passwordResetDeliveryEnabled } from "@/lib/password-reset";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  email: z.string().email(),
-});
+const schema = z
+  .object({
+    email: z.string().email(),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   const ip = clientIp(req);
@@ -24,6 +27,10 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+  }
+
+  if (!passwordResetDeliveryEnabled()) {
+    return NextResponse.json({ ok: true });
   }
 
   const email = parsed.data.email.toLowerCase();
@@ -44,8 +51,5 @@ export async function POST(req: Request) {
   });
 
   const sent = await sendPasswordResetEmail({ to: email, token });
-  return NextResponse.json({
-    ok: true,
-    ...(sent.mocked && "link" in sent ? { devLink: sent.link } : {}),
-  });
+  return NextResponse.json(passwordResetBody(sent));
 }

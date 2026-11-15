@@ -52,7 +52,7 @@ export async function sendPasswordResetEmail(opts: { to: string; token: string }
   `;
 
   if (!resend) {
-    console.info("[email:dev] password-reset", { to: opts.to, link });
+    console.info("[email:dev] password-reset", { to: opts.to });
     return { ok: true, mocked: true, link };
   }
 

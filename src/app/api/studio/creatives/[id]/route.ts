@@ -13,6 +13,13 @@ export async function GET(_req: Request, { params }: Params) {
   if (auth.error) return auth.error;
 
   const { id } = await params;
+  const owned = await prisma.creative.findFirst({
+    where: { id, userId: auth.session.userId },
+    select: { id: true },
+  });
+  if (!owned) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   await continueCreative(id, new Date(), scheduleCreative);
   const creative = await prisma.creative.findFirst({
     where: { id, userId: auth.session.userId },

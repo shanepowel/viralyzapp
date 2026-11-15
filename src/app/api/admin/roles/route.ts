@@ -6,10 +6,12 @@ import { assignRoleDecision } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  email: z.string().email(),
-  role: z.enum(["user", "admin"]),
-});
+const schema = z
+  .object({
+    email: z.string().email(),
+    role: z.enum(["user", "admin"]),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   const auth = await requireSuperAdmin();

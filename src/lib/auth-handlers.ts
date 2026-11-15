@@ -10,28 +10,31 @@ import { ensureStaffRole } from "@/lib/users";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
 
-const loginSchema = z
+export const loginSchema = z
   .object({
     email: z.string().email().optional(),
     password: z.string().min(1).optional(),
     demo: z.boolean().optional(),
   })
+  .strict()
   .refine((v) => v.demo === true || (Boolean(v.email) && Boolean(v.password)), {
     message: "Enter a valid email and password.",
   });
 
-const signupSchema = z.object({
-  name: z.string().min(1).max(80),
-  email: z.string().email(),
-  password: z.string().min(8).max(100),
-  inviteCode: z.string().min(4).max(32).optional(),
-  handle: z
-    .string()
-    .min(2)
-    .max(32)
-    .regex(/^[a-z0-9_]+$/i)
-    .optional(),
-});
+export const signupSchema = z
+  .object({
+    name: z.string().min(1).max(80),
+    email: z.string().email(),
+    password: z.string().min(8).max(100),
+    inviteCode: z.string().min(4).max(32).optional(),
+    handle: z
+      .string()
+      .min(2)
+      .max(32)
+      .regex(/^[a-z0-9_]+$/i)
+      .optional(),
+  })
+  .strict();
 
 async function sessionResponse(user: {
   id: string;
@@ -103,9 +106,8 @@ export async function handleLogin(req: Request) {
     }
 
     return sessionResponse(await ensureStaffRole(user));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Login failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Could not sign in." }, { status: 500 });
   }
 }
 
@@ -175,9 +177,8 @@ export async function handleSignup(req: Request) {
     await grant(user.id, role === "user" ? 10 : 999, "opening balance");
 
     return sessionResponse(user);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Signup failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Could not create account." }, { status: 500 });
   }
 }
 
