@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ClerkSignOut } from "@/components/shell/ClerkSignOut";
 import { buttonClasses } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
+import { ThemeSwitch } from "@/components/ui/ThemeSwitch";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 type Props = {
@@ -158,6 +159,7 @@ export function AppShell({
               {unlimited ? null : <span className="hidden sm:inline"> credits</span>}
               {unlimited ? null : <span className="sm:hidden"> cr</span>}
             </Link>
+            <ThemeSwitch />
             <Link href="/studio?new=1" className={buttonClasses("primary", "sm")}>
               New batch
             </Link>

@@ -7,6 +7,7 @@ import { ClerkSsoButtons } from "@/components/auth/ClerkSsoButtons";
 import { Button } from "@/components/ui/Button";
 import { FieldLabel, inputClasses } from "@/components/ui/Field";
 import { Logo } from "@/components/ui/Logo";
+import { ThemeSwitch } from "@/components/ui/ThemeSwitch";
 import { Notice } from "@/components/ui/Notice";
 
 const STEPS = [
@@ -195,7 +196,8 @@ export function LoginView({
         <p className="m-0 mt-auto pt-10 font-mono text-[11px] text-muted">A Digiteq Holdings company / viralyz.com</p>
       </section>
 
-      <section className="order-1 flex items-center justify-center px-6 py-12 sm:px-10 lg:order-2 lg:py-16">
+      <section className="relative order-1 flex items-center justify-center px-6 py-16 sm:px-10 lg:order-2">
+        <ThemeSwitch className="absolute right-4 top-4" />
         <div className="vfade w-full max-w-[400px]">
           {mode === "signin" || mode === "signup" ? (
             <div role="tablist" aria-label="Sign in or create an account" className="mb-8 grid grid-cols-2 border border-rule">
