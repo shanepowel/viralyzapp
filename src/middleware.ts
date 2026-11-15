@@ -23,6 +23,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/waitlist",
   "/api/password-reset(.*)",
   "/api/claim-invite",
+  "/api/cron/(.*)",
   "/api/webhooks/clerk",
   "/api/platforms/oauth/(.*)/callback",
   "/sign-in(.*)",
@@ -59,6 +60,7 @@ async function legacyMiddleware(req: NextRequest) {
     pathname === "/api/waitlist" ||
     pathname === "/api/claim-invite" ||
     pathname.startsWith("/api/password-reset") ||
+    pathname.startsWith("/api/cron/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/uploads/") ||
     pathname === "/favicon.ico" ||
@@ -79,15 +81,11 @@ async function legacyMiddleware(req: NextRequest) {
 const withClerk = clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
   const { userId } = await auth();
-  if (!userId) {
-    if (req.nextUrl.pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", req.nextUrl.pathname);
-    return NextResponse.redirect(url);
-  }
+  if (userId) return;
+  // Email/password sessions stay valid after Clerk is switched on.
+  const session = await parseSession(req.cookies.get(AUTH_COOKIE)?.value);
+  if (session) return;
+  return unauthorized(req, req.nextUrl.pathname);
 });
 
 export default clerkEnabled ? withClerk : legacyMiddleware;

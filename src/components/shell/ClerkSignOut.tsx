@@ -7,7 +7,12 @@ export function ClerkSignOut() {
   return (
     <button
       type="button"
-      onClick={() => void signOut({ redirectUrl: "/" })}
+      onClick={() => {
+        void (async () => {
+          await fetch("/api/logout", { method: "POST" });
+          await signOut({ redirectUrl: "/" });
+        })();
+      }}
       className="min-h-11 w-full cursor-pointer border-0 bg-transparent px-0 text-left text-[14px] font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
     >
       Sign out
