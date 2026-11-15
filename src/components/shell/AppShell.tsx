@@ -119,13 +119,11 @@ export function AppShell({
         key={item.href}
         href={item.href}
         aria-current={active ? "page" : undefined}
-        className={`nav-item relative inline-flex h-14 items-center px-0.5 text-[14px] ${
-          active
-            ? "font-semibold text-ink after:absolute after:inset-x-0 after:bottom-[-1px] after:h-[3px] after:bg-ink"
-            : "font-medium text-muted"
+        className={`nav-item inline-flex h-14 items-center px-0.5 text-[14px] ${
+          active ? "font-semibold text-ink" : "font-medium text-muted"
         }`}
       >
-        {item.label}
+        <span className={active ? "hl" : ""}>{item.label}</span>
       </Link>
     );
   };

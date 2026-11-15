@@ -43,6 +43,11 @@
   --color-mark: var(--vz-mark);
   --color-mark-bg: var(--vz-mark-bg);
   --color-guide: var(--vz-guide);
+  --color-brand: var(--vz-brand);
+  --color-brand-ink: var(--vz-brand-ink);
+  --color-accent: var(--vz-accent);
+  --color-accent-ink: var(--vz-accent-ink);
+  --color-tint: var(--vz-tint);
   --color-muted: var(--vz-muted);
   --color-btn: var(--vz-btn);
   --color-btn-ink: var(--vz-btn-ink);
@@ -105,6 +110,16 @@
   );
 }
 
+/* A highlighter stroke behind a few words. Emphasis only; the text on it is always ink. */
+@utility hl {
+  background-image: linear-gradient(transparent 14%, var(--vz-accent) 14%, var(--vz-accent) 92%, transparent 92%);
+  color: var(--vz-accent-ink);
+  padding: 0 0.1em;
+  margin: 0 -0.1em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 /* Retired: the dot-grid texture. Kept as a no-op so older markup stays valid. */
 @utility dots {
   background-image: none;
@@ -130,8 +145,8 @@
   }
 
   ::selection {
-    background: var(--vz-ink);
-    color: var(--vz-bg);
+    background: var(--vz-accent);
+    color: var(--vz-accent-ink);
   }
 
   a {

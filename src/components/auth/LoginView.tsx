@@ -176,7 +176,7 @@ export function LoginView({
         <Logo />
         <div className="vfade mt-12 max-w-[560px] lg:mt-20">
           <p className="kicker m-0">Paid social ads, checked before you spend</p>
-          <h1 className="font-display m-0 mt-3 text-[40px] sm:text-[52px]">Make the ad. Mark it up. Then spend on it.</h1>
+          <h1 className="font-display m-0 mt-3 text-[40px] sm:text-[52px]">Make the ad. <span className="hl">Mark it up.</span> Then spend on it.</h1>
           <p className="m-0 mt-5 max-w-[30rem] text-[16px] text-ink-2">
             On-brand ads for every placement, each one measured for contrast, safe zone, ratio, length and policy
             before any budget goes behind it.

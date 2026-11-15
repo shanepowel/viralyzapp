@@ -496,7 +496,9 @@ export function StudioView({
                 <span className="text-muted">Tick at least one placement and one angle.</span>
               ) : (
                 <>
-                  {count} {count === 1 ? "ad" : "ads"}
+                  <span className="hl">
+                    {count} {count === 1 ? "ad" : "ads"}
+                  </span>
                   <span className="font-mono text-[13px] font-normal tracking-normal text-muted">
                     {"  "}
                     {angles.length} {angles.length === 1 ? "angle" : "angles"} × {placements.length}{" "}

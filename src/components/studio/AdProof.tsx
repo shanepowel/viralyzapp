@@ -124,7 +124,7 @@ export function ProofTile({
       aria-pressed={selected}
       className={`group block w-full cursor-pointer border-0 bg-transparent p-0 text-left ${selected ? "" : "opacity-95"}`}
     >
-      <span className={`block p-1 ${selected ? "outline outline-2 outline-ink" : "outline outline-1 outline-transparent group-hover:outline-line"}`}>
+      <span className={`block p-1 ${selected ? "outline outline-2 outline-ink shadow-[5px_5px_0_var(--vz-accent)]" : "outline outline-1 outline-transparent group-hover:outline-line"}`}>
         <AdProof creative={creative} />
       </span>
       <span className="mt-1.5 flex items-baseline justify-between gap-2 px-1">
